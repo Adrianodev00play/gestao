@@ -2,13 +2,16 @@
 <html lang="pt-BR" >
 <head>
   <meta charset="UTF-8" />
-  <title>Estoque</title>
+  <title>Estoque Pro - Ultra Leve</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
+    /* DESIGN ORIGINAL MANTIDO */
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #0f0f0f; color: #eee; margin: 0; padding: 12px; }
-    h1 { text-align: center; margin-bottom: 10px; }
+    h1 { text-align: center; margin-bottom: 5px; }
+
+    #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 15px; font-size: 14px; }
 
     #menuButton {
       position: fixed; top: 12px; left: 12px; background: #2196f3;
@@ -19,9 +22,8 @@
 
     #menuModal {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: #1b1b1b; padding: 166px 24px; border-radius: 12px;
+      background: #1b1b1b; padding: 20px; border-radius: 12px;
       box-shadow: 0 0 12px #000; display: none; z-index: 1200; min-width: 260px;
-      padding: 20px;
     }
 
     #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; }
@@ -36,20 +38,25 @@
     #addButton, #searchButton { background: #4caf50; color: #000; font-weight: bold; }
     .back { background: #555; color: #fff; }
 
-    /* BUSCA */
     #searchOverlay { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; padding: 12px; z-index: 1000; }
-    #searchResults { margin-top: 12px; overflow-y: auto; flex: 1; }
+    #searchResults { margin-top: 12px; overflow-y: auto; flex: 1; padding-bottom: 50px; }
 
-    #folder { background: #f39c12; color: #000; padding: 12px; border-radius: 10px; margin-top: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; max-width: 300px; }
-    #folder::before { content: "📁"; font-size: 22px; }
-    #folderList { background: #2c2c2c; margin-top: 6px; border-radius: 8px; max-height: 250px; overflow-y: auto; display: none; padding: 8px; }
+    #folder { background: #f39c12; color: #000; padding: 12px; border-radius: 10px; margin-top: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+    #folderList { background: #2c2c2c; margin-top: 6px; border-radius: 8px; max-height: 400px; overflow-y: auto; display: none; padding: 8px; }
 
-    .item-card { background: #3a3a3a; padding: 10px; border-radius: 8px; margin-bottom: 8px; }
-    .item-card button { width: auto; padding: 6px 12px; font-size: 14px; margin-right: 5px; }
+    .item-card { background: #3a3a3a; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2196f3; }
+    .item-info { flex: 1; padding-right: 10px; }
+    
+    .action-buttons { display: flex; gap: 8px; }
+    .action-buttons button { width: 40px; height: 40px; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    
     .btn-danger { background: #f44336; color: #fff; }
     .btn-edit { background: #2196f3; color: #fff; }
 
     #message { margin-top: 12px; font-weight: bold; color: #4caf50; }
+    mark { background: #fff; color: #000; border-radius: 2px; padding: 0 2px; }
+    #searchCounter { color: #4caf50; font-weight: bold; text-align: center; margin-top: 10px; font-size: 18px; min-height: 20px; }
+    #storageSize { text-align: center; font-size: 11px; color: #888; margin-bottom: 5px; }
   </style>
 </head>
 <body>
@@ -57,6 +64,8 @@
   <button id="menuButton" onclick="openMenu()">:</button>
 
   <h1>Meu Estoque</h1>
+  <div id="storageSize">Calculando...</div>
+  <div id="globalCounter">Carregando...</div>
 
   <button id="searchButton" onclick="openSearch()">🔍 Pesquisar item</button>
 
@@ -65,10 +74,11 @@
     <input id="nome" placeholder="Nome do produto" />
     <input id="prateleira" placeholder="Posição (Ex: A1, A2...)" />
     <input id="preco" placeholder="Preço ou Observação" />
+    
     <button id="addButton" onclick="addItem()">Adicionar</button>
-
     <div id="message"></div>
-    <div id="folder" onclick="toggleFolder()">Itens armazenados</div>
+    
+    <div id="folder" onclick="toggleFolder()">📁 Itens armazenados (Últimos 50)</div>
     <div id="folderList"></div>
   </div>
 
@@ -83,185 +93,176 @@
   <div id="searchOverlay">
     <input id="searchInput" placeholder="Digite para buscar..." oninput="renderSearchResults()" />
     <button class="back" onclick="closeSearch()">⬅ Voltar</button>
+    <div id="searchCounter"></div>
     <div id="searchResults"></div>
   </div>
 
   <script>
-    const STORAGE_KEY = "estoque_final";
-    let estoque = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    let editIndex = null;
+    let db;
+    let estoque = [];
+    let editId = null;
 
-    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(estoque)); }
-
-    function addItem() {
-      const nome = document.getElementById("nome").value.trim();
-      const prateleira = document.getElementById("prateleira").value.trim().toUpperCase();
-      const preco = document.getElementById("preco").value.trim();
-
-      if (!nome || !prateleira) return alert("Preencha Nome e Posição");
-
-      if (editIndex !== null) {
-        estoque[editIndex] = { nome, prateleira, preco };
-        editIndex = null;
-        document.getElementById("addButton").textContent = "Adicionar";
-      } else {
-        estoque.push({ nome, prateleira, preco });
+    // BANCO DE DADOS INDEXEDDB
+    const request = indexedDB.open("EstoqueDB", 1);
+    request.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("itens")) {
+        db.createObjectStore("itens", { keyPath: "id", autoIncrement: true });
       }
+    };
+    request.onsuccess = (e) => { db = e.target.result; refreshData(); };
 
-      save();
-      renderFolderList();
-      resetInputs();
-      showMessage("Salvo com sucesso!");
+    function refreshData() {
+      const transaction = db.transaction(["itens"], "readonly");
+      const store = transaction.objectStore("itens");
+      const requestAll = store.getAll();
+      requestAll.onsuccess = () => {
+        estoque = requestAll.result;
+        updateGlobalCounter();
+        calculateStorage();
+        renderFolderList();
+      };
     }
 
-    function resetInputs() {
-      document.getElementById("nome").value = "";
-      document.getElementById("prateleira").value = "";
-      document.getElementById("preco").value = "";
+    function calculateStorage() {
+        const str = JSON.stringify(estoque);
+        const sizeKB = (new Blob([str]).size / 1024).toFixed(2);
+        // Agora mostramos em KB porque sem fotos o sistema é levíssimo
+        document.getElementById("storageSize").textContent = `Peso dos dados: ${sizeKB} KB`;
+    }
+
+    function updateGlobalCounter() {
+      document.getElementById("globalCounter").textContent = "Total: " + estoque.length + " itens";
+    }
+
+    // RENDERIZAÇÃO LIMPA E RÁPIDA
+    function createItemCard(item, terms = []) {
+      const div = document.createElement("div");
+      div.className = "item-card";
+      const hNome = terms.length ? highlightText(item.nome, terms) : item.nome;
+      const hPrat = terms.length ? highlightText(item.prateleira, terms) : item.prateleira;
+      
+      div.innerHTML = `
+        <div class="item-info">
+          <strong>${hNome}</strong><br>
+          <small>Posição: ${hPrat} ${item.preco ? '| ' + item.preco : ''}</small>
+        </div>
+        <div class="action-buttons">
+          <button class="btn-edit" onclick="editItem(${item.id})">✏️</button>
+          <button class="btn-danger" onclick="removeItem(${item.id})">🗑</button>
+        </div>
+      `;
+      return div;
     }
 
     function renderFolderList() {
       const list = document.getElementById("folderList");
       list.innerHTML = "";
-      estoque.forEach((item, index) => {
-        const div = document.createElement("div");
-        div.className = "item-card";
-        div.innerHTML = `
-          <strong>${item.nome}</strong><br>
-          <small>Posição: ${item.prateleira} ${item.preco ? '| ' + item.preco : ''}</small><br>
-          <button class="btn-edit" onclick="editItem(${index})">✏️</button>
-          <button class="btn-danger" onclick="removeItem(${index})">🗑</button>
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    function editItem(index) {
-      const item = estoque[index];
-      document.getElementById("nome").value = item.nome;
-      document.getElementById("prateleira").value = item.prateleira;
-      document.getElementById("preco").value = item.preco || "";
-      editIndex = index;
-      document.getElementById("addButton").textContent = "Salvar Edição";
-      closeSearch();
-      window.scrollTo(0,0);
-    }
-
-    function removeItem(index) {
-      if (!confirm("Apagar item?")) return;
-      estoque.splice(index, 1);
-      save();
-      renderFolderList();
-      renderSearchResults();
-    }
-
-    /* BUSCA */
-    function openSearch() {
-      const input = document.getElementById("searchInput");
-      input.value = ""; 
-      document.getElementById("searchResults").innerHTML = "";
-      document.getElementById("searchOverlay").style.display = "flex";
-      document.getElementById("menuButton").style.display = "none";
-      input.focus();
-    }
-
-    function closeSearch() {
-      document.getElementById("searchInput").value = ""; 
-      document.getElementById("searchOverlay").style.display = "none";
-      document.getElementById("menuButton").style.display = "block";
+      const recentes = [...estoque].reverse().slice(0, 50);
+      recentes.forEach(item => list.appendChild(createItemCard(item)));
     }
 
     function renderSearchResults() {
-      const query = document.getElementById("searchInput").value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const terms = query.split(" ").filter(t => t !== "");
-      const resultsContainer = document.getElementById("searchResults");
-      resultsContainer.innerHTML = "";
+      const raw = document.getElementById("searchInput").value.trim();
+      const terms = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(t => t !== "");
+      const res = document.getElementById("searchResults");
+      const cnt = document.getElementById("searchCounter");
+      res.innerHTML = "";
+      if (!terms.length) { cnt.textContent = ""; return; }
 
-      if (terms.length === 0) return;
-
-      estoque.forEach((item, index) => {
-        const text = (item.nome + " " + item.prateleira + " " + (item.preco || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const match = terms.every(term => text.includes(term));
-
-        if (match) {
-          const div = document.createElement("div");
-          div.className = "card";
-          div.style.display = "flex";
-          div.style.justifyContent = "space-between";
-          div.style.alignItems = "center";
-          div.innerHTML = `
-            <div style="flex:1">
-              <strong>${item.nome}</strong><br>
-              <small>Posição: ${item.prateleira} ${item.preco ? '| ' + item.preco : ''}</small>
-            </div>
-            <div style="display:flex; gap:5px;">
-              <button class="btn-edit" style="width:40px; margin:0;" onclick="editItem(${index})">✏️</button>
-              <button class="btn-danger" style="width:40px; margin:0;" onclick="removeItem(${index}); renderSearchResults();">🗑</button>
-            </div>
-          `;
-          resultsContainer.appendChild(div);
-        }
+      const filtrados = estoque.filter(item => {
+        const full = (item.nome + " " + item.prateleira + " " + (item.preco || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return terms.every(t => full.includes(t));
       });
+
+      filtrados.slice(0, 100).forEach(item => res.appendChild(createItemCard(item, terms)));
+      cnt.textContent = filtrados.length + " encontrados";
     }
 
-    function toggleFolder() {
-      const list = document.getElementById("folderList");
-      const folder = document.getElementById("folder");
-      if (list.style.display === "block") {
-        list.style.display = "none";
-        folder.style.background = "#f39c12";
+    // OPERAÇÕES
+    function addItem() {
+      const nome = document.getElementById("nome").value.trim();
+      const prateleira = document.getElementById("prateleira").value.trim().toUpperCase();
+      const preco = document.getElementById("preco").value.trim();
+      if (!nome || !prateleira) return alert("Preencha Nome e Posição");
+
+      const itemData = { nome, prateleira, preco };
+      const transaction = db.transaction(["itens"], "readwrite");
+      const store = transaction.objectStore("itens");
+
+      if (editId !== null) {
+        itemData.id = editId;
+        store.put(itemData);
+        editId = null;
+        document.getElementById("addButton").textContent = "Adicionar";
       } else {
-        list.style.display = "block";
-        folder.style.background = "#d35400";
+        store.add(itemData);
       }
+
+      transaction.oncomplete = () => {
+        refreshData();
+        document.getElementById("nome").value = ""; 
+        document.getElementById("preco").value = "";
+        showMessage("Salvo!");
+      };
     }
 
-    function showMessage(t) {
-      const m = document.getElementById("message");
-      m.textContent = t;
-      setTimeout(() => m.textContent = "", 2000);
+    function editItem(id) {
+      const item = estoque.find(i => i.id === id);
+      document.getElementById("nome").value = item.nome;
+      document.getElementById("prateleira").value = item.prateleira;
+      document.getElementById("preco").value = item.preco || "";
+      editId = id;
+      document.getElementById("addButton").textContent = "Salvar Edição";
+      closeSearch(); window.scrollTo(0,0);
     }
 
-    function openMenu() { 
-      document.getElementById("menuModal").style.display = "block"; 
-      document.getElementById("modalBackdrop").style.display = "block"; 
-    }
-    function closeMenu() { 
-      document.getElementById("menuModal").style.display = "none"; 
-      document.getElementById("modalBackdrop").style.display = "none"; 
+    function removeItem(id) {
+      if (!confirm("Apagar item?")) return;
+      const transaction = db.transaction(["itens"], "readwrite");
+      transaction.objectStore("itens").delete(id);
+      transaction.oncomplete = () => { refreshData(); renderSearchResults(); };
     }
 
+    // UTILITÁRIOS
+    function highlightText(text, terms) {
+      let h = text;
+      terms.forEach(t => {
+        const regex = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+        h = h.replace(regex, "<mark>$1</mark>");
+      });
+      return h;
+    }
+
+    function openSearch() { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("menuButton").style.display = "none"; document.getElementById("searchInput").focus(); }
+    function closeSearch() { document.getElementById("searchInput").value = ""; document.getElementById("searchResults").innerHTML = ""; document.getElementById("searchCounter").textContent = ""; document.getElementById("searchOverlay").style.display = "none"; document.getElementById("menuButton").style.display = "block"; }
+    function toggleFolder() { const list = document.getElementById("folderList"); list.style.display = (list.style.display === "block") ? "none" : "block"; }
+    function showMessage(t) { const m = document.getElementById("message"); m.textContent = t; setTimeout(() => m.textContent = "", 2000); }
+    function openMenu() { document.getElementById("menuModal").style.display = "block"; document.getElementById("modalBackdrop").style.display = "block"; }
+    function closeMenu() { document.getElementById("menuModal").style.display = "none"; document.getElementById("modalBackdrop").style.display = "none"; }
+
+    // BACKUP
     function downloadBackup() {
       const blob = new Blob([JSON.stringify({estoque})], {type: "application/json"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "estoque.json";
-      a.click();
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "estoque_backup.json"; a.click();
     }
-
     function restoreBackup(e) {
-      const file = e.target.files[0];
-      if(!file) return;
+      const file = e.target.files[0]; if(!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (ev) => {
         try {
-          const data = JSON.parse(event.target.result);
+          const data = JSON.parse(ev.target.result);
           if(data.estoque) {
-            estoque = data.estoque;
-            save();
-            renderFolderList();
-            alert("Backup restaurado com sucesso!");
-            closeMenu();
+            const transaction = db.transaction(["itens"], "readwrite");
+            const store = transaction.objectStore("itens");
+            store.clear();
+            data.estoque.forEach(item => { delete item.id; store.add(item); });
+            transaction.oncomplete = () => { refreshData(); alert("Restaurado!"); closeMenu(); };
           }
-        } catch(err) {
-          alert("Erro ao ler o arquivo.");
-        }
+        } catch(err) { alert("Erro no arquivo."); }
       };
       reader.readAsText(file);
     }
-
-    renderFolderList();
   </script>
 </body>
 </html>
-
