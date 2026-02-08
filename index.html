@@ -1,268 +1,387 @@
 <!DOCTYPE html>
-<html lang="pt-BR" >
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Estoque Pro - Ultra Leve</title>
+  <title>Estoque Pro - Nuvem ImgBB</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <style>
-    /* DESIGN ORIGINAL MANTIDO */
+    /* DESIGN ORIGINAL RIGOROSAMENTE MANTIDO */
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #0f0f0f; color: #eee; margin: 0; padding: 12px; }
     h1 { text-align: center; margin-bottom: 5px; }
-
-    #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 15px; font-size: 14px; }
-
-    #menuButton {
-      position: fixed; top: 12px; left: 12px; background: #2196f3;
-      color: #fff; font-weight: bold; border: none; border-radius: 50%;
-      width: 28px; height: 28px; font-size: 20px; line-height: 28px;
-      text-align: center; cursor: pointer; z-index: 1100; padding: 0;
+    #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+    #dataSize { text-align: center; color: #888; font-size: 11px; margin-bottom: 15px; }
+    
+    #menuButton { 
+      position: fixed; top: 12px; left: 12px; background: transparent; color: #fff; 
+      border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px; 
+      font-weight: bold; z-index: 900; cursor: pointer; display: flex; align-items: center; 
+      justify-content: center; padding-bottom: 4px;
     }
 
-    #menuModal {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: #1b1b1b; padding: 20px; border-radius: 12px;
-      box-shadow: 0 0 12px #000; display: none; z-index: 1200; min-width: 260px;
+    #syncStatus {
+      position: fixed; top: 10px; right: 10px; font-size: 24px; display: none; z-index: 3000;
     }
-
-    #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; }
-    #menuModal button { width: 100%; padding: 10px 0; margin-top: 12px; border-radius: 8px; border: none; cursor: pointer; }
-    #menuModal .closeBtn { background: #f44336; color: #fff; font-weight: bold; }
-    button.secondary { background: #2196f3; color: #fff; }
 
     .card { background: #1b1b1b; padding: 12px; border-radius: 10px; margin-top: 10px; }
     input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: none; font-size: 16px; cursor: pointer; }
     input { background: #222; color: #fff; }
+    #addButton { background: #4caf50; color: #000; font-weight: bold; }
+    #searchButton { background: #4caf50; color: #000; font-weight: bold; }
+    
+    #uploadStatus { display: none !important; }
 
-    #addButton, #searchButton { background: #4caf50; color: #000; font-weight: bold; }
-    .back { background: #555; color: #fff; }
-
-    #searchOverlay { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; padding: 12px; z-index: 1000; }
-    #searchResults { margin-top: 12px; overflow-y: auto; flex: 1; padding-bottom: 50px; }
-
-    #folder { background: #f39c12; color: #000; padding: 12px; border-radius: 10px; margin-top: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-    #folderList { background: #2c2c2c; margin-top: 6px; border-radius: 8px; max-height: 400px; overflow-y: auto; display: none; padding: 8px; }
+    #camArea { display: none; margin: 10px auto; width: 100%; max-width: 300px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; position: relative; background: #000; }
+    #video { width: 100%; height: 100%; object-fit: cover; }
+    #shutter { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 55px; height: 55px; background: white; border: 4px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 10; }
+    #previewContainer { position: relative; width: 100%; max-width: 300px; margin: 10px auto; display: none; }
+    #photoPreview { width: 100%; height: 200px; object-fit: contain; background: #222; border-radius: 8px; border: 1px solid #333; font-size: 12px; }
+    #removePhotoBtn { position: absolute; top: -10px; right: -10px; background: #f44336; color: white; border: 2px solid #1b1b1b; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 20; }
 
     .item-card { background: #3a3a3a; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2196f3; }
-    .item-info { flex: 1; padding-right: 10px; }
+    .item-info { flex: 1; display: flex; align-items: center; gap: 10px; }
+    .item-img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; background: #222; flex-shrink: 0; cursor: pointer; }
+    .item-text { display: flex; flex-direction: column; gap: 2px; }
+    .item-obs { font-size: 13px; color: #4caf50; font-style: italic; }
     
-    .action-buttons { display: flex; gap: 8px; }
-    .action-buttons button { width: 40px; height: 40px; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    
-    .btn-danger { background: #f44336; color: #fff; }
-    .btn-edit { background: #2196f3; color: #fff; }
+    mark { background: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
 
-    #message { margin-top: 12px; font-weight: bold; color: #4caf50; }
-    mark { background: #fff; color: #000; border-radius: 2px; padding: 0 2px; }
-    #searchCounter { color: #4caf50; font-weight: bold; text-align: center; margin-top: 10px; font-size: 18px; min-height: 20px; }
-    #storageSize { text-align: center; font-size: 11px; color: #888; margin-bottom: 5px; }
+    .action-buttons { display: flex; gap: 8px; }
+    .action-buttons button { width: 35px; height: 35px; padding: 0; }
+
+    #searchOverlay, #zoomOverlay { position: fixed; inset: 0; display: none; z-index: 2000; padding: 12px; flex-direction: column; background: #000; }
+    #zoomOverlay { background: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
+    #zoomImg { max-width: 95%; max-height: 80vh; border-radius: 8px; }
+    #menuModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1b1b1b; padding: 20px; border-radius: 12px; display: none; z-index: 1200; min-width: 280px; box-shadow: 0 0 15px #000; overflow-y: auto; max-height: 90vh; }
+    #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; }
   </style>
 </head>
 <body>
 
-  <button id="menuButton" onclick="openMenu()">:</button>
-
+  <div id="syncStatus">✅</div>
+  <button id="menuButton" onclick="openMenu()">⚙️</button>
   <h1>Meu Estoque</h1>
-  <div id="storageSize">Calculando...</div>
   <div id="globalCounter">Carregando...</div>
-
+  <div id="dataSize">Espaço: 0 KB</div>
+  
   <button id="searchButton" onclick="openSearch()">🔍 Pesquisar item</button>
 
   <div class="card">
-    <h3>Novo item</h3>
-    <input id="nome" placeholder="Nome do produto" />
-    <input id="prateleira" placeholder="Posição (Ex: A1, A2...)" />
-    <input id="preco" placeholder="Preço ou Observação" />
+    <input id="f_nome" placeholder="Nome do produto" autocomplete="off" spellcheck="false" />
+    <input id="f_pos" placeholder="Posição (Ex: A1)" autocomplete="off" spellcheck="false" />
+    <input id="f_preco" placeholder="Preço ou Obs" autocomplete="off" spellcheck="false" />
     
-    <button id="addButton" onclick="addItem()">Adicionar</button>
-    <div id="message"></div>
+    <button id="btnCam" onclick="toggleCamera()" style="background:#2196f3; color:white;">📷 Abrir Câmera</button>
+    <div id="camArea"><video id="video" autoplay playsinline></video><div id="shutter" onclick="takePhoto()"></div></div>
     
-    <div id="folder" onclick="toggleFolder()">📁 Itens armazenados (Últimos 50)</div>
-    <div id="folderList"></div>
+    <div id="previewContainer">
+        <button id="removePhotoBtn" onclick="clearCurrentPhoto()">✕</button>
+        <img id="photoPreview" onclick="zoomImage(this.src)" />
+    </div>
+
+    <button id="addButton" onclick="addItem()">Adicionar Item</button>
+    <div id="message" style="text-align:center; color:#4caf50; margin-top:10px;"></div>
+    
+    <div id="folder" onclick="toggleFolder()" style="cursor:pointer; background:#f39c12; color:#000; padding:10px; border-radius:8px; margin-top:15px; text-align:center; font-weight:bold;">📁 Ver últimos 50 itens</div>
+    <div id="folderList" style="display:none; margin-top:10px;"></div>
   </div>
 
   <div id="modalBackdrop" onclick="closeMenu()"></div>
   <div id="menuModal">
-    <h2 style="color:#eee; margin-top:0;">Backup</h2>
-    <button class="secondary" onclick="downloadBackup()">📥 Baixar backup</button>
-    <input type="file" id="fileInput" accept=".json" onchange="restoreBackup(event)" style="font-size: 12px;"/>
-    <button class="closeBtn" onclick="closeMenu()">✖ Fechar</button>
+    <h3>Configurações</h3>
+    <label style="font-size: 11px; color: #2196f3;">Chave API ImgBB:</label>
+    <input id="f_key" placeholder="Sua API KEY ImgBB" type="text" autocomplete="off" style="-webkit-text-security: disc;" />
+    
+    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+    <label style="font-size: 11px; color: #4caf50;">Firebase URL (Opcional):</label>
+    <input id="f_cloud" placeholder="https://seu-projeto.firebaseio.com/.json" type="text" style="font-size:12px;" autocomplete="off" />
+    
+    <div style="margin-top:10px; display: flex; flex-direction: column; gap: 8px;">
+        <button onclick="loadFromCloud()" style="background:#f39c12; color:#000; font-size:12px; font-weight:bold;">☁️ Baixar da Nuvem (Firebase)</button>
+        <button onclick="clearCloudData()" style="background:#f44336; color:#fff; font-size:12px; font-weight:bold;">🗑️ Apagar Tudo da Nuvem</button>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+    <button onclick="downloadBackup()" style="background:#2196f3; color:white;">📥 Backup Offline JSON</button>
+    <input type="file" id="fileInput" accept=".json" onchange="restoreBackup(event)" style="font-size: 11px;"/>
+    <button onclick="closeMenu()" style="background:#555; color:white; margin-top:15px;">Fechar</button>
   </div>
 
   <div id="searchOverlay">
-    <input id="searchInput" placeholder="Digite para buscar..." oninput="renderSearchResults()" />
-    <button class="back" onclick="closeSearch()">⬅ Voltar</button>
-    <div id="searchCounter"></div>
-    <div id="searchResults"></div>
+    <input id="searchInput" placeholder="Buscar..." oninput="renderSearchResults()" autocomplete="off" spellcheck="false" />
+    <button onclick="closeSearch()" style="background:#555; color:white;">Voltar</button>
+    <div id="searchResults" style="margin-top:10px; overflow-y: auto; flex: 1;"></div>
+  </div>
+
+  <div id="zoomOverlay" onclick="closeZoom()">
+      <img id="zoomImg" src="" />
   </div>
 
   <script>
-    let db;
-    let estoque = [];
-    let editId = null;
+    let db, estoque = [], editId = null, stream = null, currentBlob = null, currentPhotoUrl = null;
 
-    // BANCO DE DADOS INDEXEDDB
-    const request = indexedDB.open("EstoqueDB", 1);
-    request.onupgradeneeded = (e) => {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains("itens")) {
-        db.createObjectStore("itens", { keyPath: "id", autoIncrement: true });
-      }
-    };
-    request.onsuccess = (e) => { db = e.target.result; refreshData(); };
+    window.addEventListener('load', () => {
+        const savedKey = localStorage.getItem("imgbb_api_key");
+        if (savedKey) document.getElementById("f_key").value = savedKey;
+        const savedFb = localStorage.getItem("firebase_url");
+        if (savedFb) document.getElementById("f_cloud").value = savedFb;
+        
+        const request = indexedDB.open("EstoqueImgBB", 1);
+        request.onupgradeneeded = (e) => {
+          db = e.target.result;
+          if (!db.objectStoreNames.contains("itens")) db.createObjectStore("itens", { keyPath: "id", autoIncrement: true });
+        };
+        request.onsuccess = (e) => { db = e.target.result; refreshData(); };
+    });
+
+    document.getElementById("f_key").addEventListener('input', (e) => localStorage.setItem("imgbb_api_key", e.target.value));
+    document.getElementById("f_cloud").addEventListener('input', (e) => localStorage.setItem("firebase_url", e.target.value));
 
     function refreshData() {
-      const transaction = db.transaction(["itens"], "readonly");
-      const store = transaction.objectStore("itens");
-      const requestAll = store.getAll();
-      requestAll.onsuccess = () => {
-        estoque = requestAll.result;
-        updateGlobalCounter();
-        calculateStorage();
+      const store = db.transaction(["itens"], "readonly").objectStore("itens");
+      store.getAll().onsuccess = (ev) => {
+        estoque = ev.target.result;
+        document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
+        calculateDataSize();
         renderFolderList();
       };
     }
 
-    function calculateStorage() {
-        const str = JSON.stringify(estoque);
-        const sizeKB = (new Blob([str]).size / 1024).toFixed(2);
-        // Agora mostramos em KB porque sem fotos o sistema é levíssimo
-        document.getElementById("storageSize").textContent = `Peso dos dados: ${sizeKB} KB`;
+    async function saveToCloud() {
+        const url = document.getElementById("f_cloud").value.trim();
+        if(!url || !url.endsWith(".json")) return;
+        try {
+            await fetch(url, { method: 'PUT', body: JSON.stringify(estoque) });
+            showSyncCheck();
+        } catch(e) { console.error("Erro na sincronização"); }
     }
 
-    function updateGlobalCounter() {
-      document.getElementById("globalCounter").textContent = "Total: " + estoque.length + " itens";
+    async function clearCloudData() {
+        const url = document.getElementById("f_cloud").value.trim();
+        if(!url) return alert("Insira a URL do Firebase.");
+        if(!confirm("CUIDADO! Isso apagará TODOS os dados do servidor.")) return;
+        try {
+            await fetch(url, { method: 'PUT', body: JSON.stringify([]) });
+            alert("Nuvem limpa!"); showSyncCheck();
+        } catch(e) { alert("Erro ao limpar."); }
     }
 
-    // RENDERIZAÇÃO LIMPA E RÁPIDA
-    function createItemCard(item, terms = []) {
-      const div = document.createElement("div");
-      div.className = "item-card";
-      const hNome = terms.length ? highlightText(item.nome, terms) : item.nome;
-      const hPrat = terms.length ? highlightText(item.prateleira, terms) : item.prateleira;
-      
-      div.innerHTML = `
-        <div class="item-info">
-          <strong>${hNome}</strong><br>
-          <small>Posição: ${hPrat} ${item.preco ? '| ' + item.preco : ''}</small>
-        </div>
-        <div class="action-buttons">
-          <button class="btn-edit" onclick="editItem(${item.id})">✏️</button>
-          <button class="btn-danger" onclick="removeItem(${item.id})">🗑</button>
-        </div>
-      `;
-      return div;
+    function showSyncCheck() {
+        const check = document.getElementById("syncStatus");
+        check.style.display = "block";
+        setTimeout(() => { check.style.display = "none"; }, 1000);
     }
 
-    function renderFolderList() {
-      const list = document.getElementById("folderList");
-      list.innerHTML = "";
-      const recentes = [...estoque].reverse().slice(0, 50);
-      recentes.forEach(item => list.appendChild(createItemCard(item)));
+    async function loadFromCloud() {
+        const url = document.getElementById("f_cloud").value.trim();
+        if(!url) return alert("URL Firebase necessária.");
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if(data) {
+                const tx = db.transaction(["itens"], "readwrite");
+                const store = tx.objectStore("itens");
+                store.clear().onsuccess = () => {
+                    data.forEach(item => { if(item) { delete item.id; store.add(item); } });
+                };
+                tx.oncomplete = () => location.reload();
+            }
+        } catch(e) { alert("Erro ao baixar."); }
     }
 
-    function renderSearchResults() {
-      const raw = document.getElementById("searchInput").value.trim();
-      const terms = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(t => t !== "");
-      const res = document.getElementById("searchResults");
-      const cnt = document.getElementById("searchCounter");
-      res.innerHTML = "";
-      if (!terms.length) { cnt.textContent = ""; return; }
-
-      const filtrados = estoque.filter(item => {
-        const full = (item.nome + " " + item.prateleira + " " + (item.preco || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return terms.every(t => full.includes(t));
-      });
-
-      filtrados.slice(0, 100).forEach(item => res.appendChild(createItemCard(item, terms)));
-      cnt.textContent = filtrados.length + " encontrados";
+    function calculateDataSize() {
+        const bytes = new Blob([JSON.stringify(estoque)]).size;
+        document.getElementById("dataSize").textContent = `Espaço: ${(bytes / 1024).toFixed(2)} KB`;
     }
 
-    // OPERAÇÕES
+    async function toggleCamera() {
+        const camArea = document.getElementById("camArea"), btn = document.getElementById("btnCam"), video = document.getElementById("video");
+        if (!stream) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream; camArea.style.display = "block";
+                btn.textContent = "✖ Fechar";
+            } catch (err) { alert("Erro câmera."); }
+        } else { stopCamera(); }
+    }
+
+    function stopCamera() {
+        if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
+        document.getElementById("camArea").style.display = "none";
+        document.getElementById("btnCam").textContent = "📷 Abrir Câmera";
+    }
+
+    async function takePhoto() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 400; canvas.height = 400;
+        const ctx = canvas.getContext("2d"), v = document.getElementById("video");
+        ctx.drawImage(v, 0, 0, 400, 400);
+        stopCamera();
+        currentBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.6));
+        currentPhotoUrl = URL.createObjectURL(currentBlob);
+        document.getElementById("photoPreview").src = currentPhotoUrl;
+        document.getElementById("previewContainer").style.display = "block";
+    }
+
+    function clearCurrentPhoto() {
+        currentBlob = null; currentPhotoUrl = null;
+        document.getElementById("previewContainer").style.display = "none";
+    }
+
+    async function backgroundUpload(itemId, blob) {
+        const key = document.getElementById("f_key").value;
+        if (!key) return;
+        const formData = new FormData();
+        formData.append("image", blob);
+        try {
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method: "POST", body: formData });
+            const json = await res.json();
+            if (json.success) {
+                const tx = db.transaction(["itens"], "readwrite");
+                const store = tx.objectStore("itens");
+                store.get(itemId).onsuccess = (e) => {
+                    const item = e.target.result;
+                    if(item) { item.foto = json.data.url; store.put(item); }
+                };
+                tx.oncomplete = () => { refreshData(); setTimeout(saveToCloud, 500); };
+            }
+        } catch (e) { console.error("Erro upload"); }
+    }
+
     function addItem() {
-      const nome = document.getElementById("nome").value.trim();
-      const prateleira = document.getElementById("prateleira").value.trim().toUpperCase();
-      const preco = document.getElementById("preco").value.trim();
-      if (!nome || !prateleira) return alert("Preencha Nome e Posição");
-
-      const itemData = { nome, prateleira, preco };
-      const transaction = db.transaction(["itens"], "readwrite");
-      const store = transaction.objectStore("itens");
-
-      if (editId !== null) {
-        itemData.id = editId;
-        store.put(itemData);
-        editId = null;
-        document.getElementById("addButton").textContent = "Adicionar";
-      } else {
-        store.add(itemData);
+      const nome = document.getElementById("f_nome").value.trim();
+      const prateleira = document.getElementById("f_pos").value.trim();
+      const preco = document.getElementById("f_preco").value.trim();
+      if (!nome || !prateleira) return alert("Preencha Nome e Posição!");
+      
+      const item = { nome, prateleira, preco, foto: currentBlob ? null : currentPhotoUrl };
+      const tx = db.transaction(["itens"], "readwrite");
+      const store = tx.objectStore("itens");
+      
+      if (editId) { 
+          item.id = editId; store.put(item); 
+          if (currentBlob) backgroundUpload(editId, currentBlob); 
+          editId = null; 
+      } else { 
+          const addReq = store.add(item); 
+          addReq.onsuccess = (e) => { if (currentBlob) backgroundUpload(e.target.result, currentBlob); }; 
       }
-
-      transaction.oncomplete = () => {
-        refreshData();
-        document.getElementById("nome").value = ""; 
-        document.getElementById("preco").value = "";
-        showMessage("Salvo!");
+      tx.oncomplete = () => {
+        document.getElementById("f_nome").value = ""; document.getElementById("f_pos").value = ""; document.getElementById("f_preco").value = "";
+        clearCurrentPhoto(); refreshData(); showMessage("Salvo!");
+        document.getElementById("addButton").textContent = "Adicionar Item";
+        setTimeout(saveToCloud, 300);
       };
     }
 
     function editItem(id) {
-      const item = estoque.find(i => i.id === id);
-      document.getElementById("nome").value = item.nome;
-      document.getElementById("prateleira").value = item.prateleira;
-      document.getElementById("preco").value = item.preco || "";
-      editId = id;
-      document.getElementById("addButton").textContent = "Salvar Edição";
-      closeSearch(); window.scrollTo(0,0);
+        const item = estoque.find(i => i.id === id);
+        if (!item) return;
+        document.getElementById("f_nome").value = item.nome;
+        document.getElementById("f_pos").value = item.prateleira;
+        document.getElementById("f_preco").value = item.preco || "";
+        if (item.foto) { 
+            document.getElementById("photoPreview").src = item.foto; 
+            document.getElementById("previewContainer").style.display = "block"; 
+            currentPhotoUrl = item.foto;
+        }
+        editId = id; document.getElementById("addButton").textContent = "Salvar Alteração";
+        closeSearch(); window.scrollTo(0,0);
     }
 
-    function removeItem(id) {
-      if (!confirm("Apagar item?")) return;
-      const transaction = db.transaction(["itens"], "readwrite");
-      transaction.objectStore("itens").delete(id);
-      transaction.oncomplete = () => { refreshData(); renderSearchResults(); };
+    function createItemCard(item, searchTerms = []) {
+        const div = document.createElement("div");
+        div.className = "item-card";
+        let n = item.nome, p = item.prateleira;
+        if(searchTerms.length > 0) {
+            searchTerms.forEach(t => {
+                const r = new RegExp(`(${t})`, "gi");
+                n = n.replace(r, "<mark>$1</mark>");
+                p = p.replace(r, "<mark>$1</mark>");
+            });
+        }
+        const img = item.foto ? `<img src="${item.foto}" class="item-img" onclick="zoomImage('${item.foto}')">` : `<div class="item-img"></div>`;
+        div.innerHTML = `
+            <div class="item-info">
+                ${img}
+                <div class="item-text"><strong>${n}</strong><small style="color:#ff4444; font-weight:bold;">Pos: ${p}</small><span style="color:#4caf50; font-weight:bold;">${item.preco||""}</span></div>
+            </div>
+            <div class="action-buttons">
+                <button onclick="editItem(${item.id})" style="background:#2196f3">✏️</button>
+                <button onclick="removeItem(${item.id})" style="background:#f44336">🗑</button>
+            </div>`;
+        return div;
     }
 
-    // UTILITÁRIOS
-    function highlightText(text, terms) {
-      let h = text;
-      terms.forEach(t => {
-        const regex = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
-        h = h.replace(regex, "<mark>$1</mark>");
-      });
-      return h;
+    function removeItem(id) { 
+        if(confirm("Apagar?")) {
+            db.transaction(["itens"],"readwrite").objectStore("itens").delete(id).onsuccess = () => {
+                const store = db.transaction(["itens"], "readonly").objectStore("itens");
+                store.getAll().onsuccess = (ev) => {
+                    estoque = ev.target.result;
+                    document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
+                    calculateDataSize();
+                    renderFolderList();
+                    renderSearchResults();
+                    setTimeout(saveToCloud, 300);
+                };
+            };
+        }
     }
 
-    function openSearch() { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("menuButton").style.display = "none"; document.getElementById("searchInput").focus(); }
-    function closeSearch() { document.getElementById("searchInput").value = ""; document.getElementById("searchResults").innerHTML = ""; document.getElementById("searchCounter").textContent = ""; document.getElementById("searchOverlay").style.display = "none"; document.getElementById("menuButton").style.display = "block"; }
-    function toggleFolder() { const list = document.getElementById("folderList"); list.style.display = (list.style.display === "block") ? "none" : "block"; }
-    function showMessage(t) { const m = document.getElementById("message"); m.textContent = t; setTimeout(() => m.textContent = "", 2000); }
+    function renderFolderList() { 
+        const list = document.getElementById("folderList"); 
+        list.innerHTML = ""; 
+        estoque.slice(-50).reverse().forEach(i => list.appendChild(createItemCard(i))); 
+    }
+
+    function renderSearchResults() {
+        const inputVal = document.getElementById("searchInput").value.trim().toLowerCase();
+        const resArea = document.getElementById("searchResults");
+        resArea.innerHTML = ""; if (!inputVal) return;
+        const terms = inputVal.split(/\s+/);
+        estoque.filter(item => terms.every(t => (item.nome + " " + item.prateleira).toLowerCase().includes(t)))
+               .reverse().slice(0, 40).forEach(i => resArea.appendChild(createItemCard(i, terms)));
+    }
+
+    function openSearch() { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("searchInput").focus(); }
+    
+    function closeSearch() { 
+      document.getElementById("searchOverlay").style.display = "none"; 
+      document.getElementById("searchInput").value = ""; 
+      document.getElementById("searchResults").innerHTML = ""; 
+    }
+
+    function toggleFolder() { const l = document.getElementById("folderList"); l.style.display = l.style.display === "none" ? "block" : "none"; }
     function openMenu() { document.getElementById("menuModal").style.display = "block"; document.getElementById("modalBackdrop").style.display = "block"; }
     function closeMenu() { document.getElementById("menuModal").style.display = "none"; document.getElementById("modalBackdrop").style.display = "none"; }
-
-    // BACKUP
-    function downloadBackup() {
-      const blob = new Blob([JSON.stringify({estoque})], {type: "application/json"});
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "estoque_backup.json"; a.click();
-    }
-    function restoreBackup(e) {
-      const file = e.target.files[0]; if(!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          if(data.estoque) {
-            const transaction = db.transaction(["itens"], "readwrite");
-            const store = transaction.objectStore("itens");
-            store.clear();
-            data.estoque.forEach(item => { delete item.id; store.add(item); });
-            transaction.oncomplete = () => { refreshData(); alert("Restaurado!"); closeMenu(); };
-          }
-        } catch(err) { alert("Erro no arquivo."); }
-      };
-      reader.readAsText(file);
+    function zoomImage(s) { document.getElementById("zoomImg").src = s; document.getElementById("zoomOverlay").style.display = "flex"; }
+    function closeZoom() { document.getElementById("zoomOverlay").style.display = "none"; }
+    function showMessage(m) { const el = document.getElementById("message"); el.textContent = m; setTimeout(()=>el.textContent="", 2000); }
+    function downloadBackup() { const blob = new Blob([JSON.stringify({estoque})], {type:"application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "estoque.json"; a.click(); }
+    
+    function restoreBackup(e) { 
+      const fr = new FileReader(); 
+      fr.onload = (ev) => { 
+        const data = JSON.parse(ev.target.result); 
+        const tx = db.transaction(["itens"], "readwrite"); 
+        const store = tx.objectStore("itens");
+        store.clear().onsuccess = () => { 
+          data.estoque.forEach(i => { delete i.id; store.add(i); }); 
+        }; 
+        tx.oncomplete = () => {
+          const readTx = db.transaction(["itens"], "readonly").objectStore("itens");
+          readTx.getAll().onsuccess = (evEstoque) => {
+            estoque = evEstoque.target.result;
+            saveToCloud().then(() => {
+              alert("Backup carregado e sincronizado com a nuvem!");
+              location.reload();
+            });
+          };
+        }; 
+      }; 
+      fr.readAsText(e.target.files[0]); 
     }
   </script>
 </body>
-</html>
+</html
