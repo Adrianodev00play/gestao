@@ -198,7 +198,11 @@
         const camArea = document.getElementById("camArea"), btn = document.getElementById("btnCam"), video = document.getElementById("video");
         if (!stream) {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                stream = await navigator.mediaDevices.getUserMedia({ video: {
+  facingMode: "environment",
+  width:  { ideal: 1280 },
+  height: { ideal: 720 }
+} });
                 video.srcObject = stream; camArea.style.display = "block";
                 btn.textContent = "✖ Fechar";
             } catch (err) { alert("Erro câmera."); }
@@ -213,11 +217,22 @@
 
     async function takePhoto() {
         const canvas = document.createElement("canvas");
-        canvas.width = 400; canvas.height = 400;
+        canvas.width = 1080; canvas.height = 1080;
         const ctx = canvas.getContext("2d"), v = document.getElementById("video");
-        ctx.drawImage(v, 0, 0, 400, 400);
+        const vw = v.videoWidth;
+const vh = v.videoHeight;
+
+const size = Math.min(vw, vh);
+const sx = (vw - size) / 2;
+const sy = (vh - size) / 2;
+
+ctx.drawImage(
+  v,
+  sx, sy, size, size,   // recorte da câmera
+  0, 0, canvas.width, canvas.height // destino no canvas
+);
         stopCamera();
-        currentBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.6));
+        currentBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
         currentPhotoUrl = URL.createObjectURL(currentBlob);
         document.getElementById("photoPreview").src = currentPhotoUrl;
         document.getElementById("previewContainer").style.display = "block";
@@ -254,7 +269,7 @@
       const preco = document.getElementById("f_preco").value.trim();
       if (!nome || !prateleira) return alert("Preencha Nome e Posição!");
       
-      const item = { nome, prateleira, preco, foto: currentBlob ? null : currentPhotoUrl };
+      const item = { nome, prateleira, preco, foto: currentPhotoUrl };
       const tx = db.transaction(["itens"], "readwrite");
       const store = tx.objectStore("itens");
       
@@ -267,7 +282,7 @@
           addReq.onsuccess = (e) => { if (currentBlob) backgroundUpload(e.target.result, currentBlob); }; 
       }
       tx.oncomplete = () => {
-        document.getElementById("f_nome").value = ""; document.getElementById("f_pos").value = ""; document.getElementById("f_preco").value = "";
+        document.getElementById("f_nome").value = ""; document.getElementById("f_preco").value = "";
         clearCurrentPhoto(); refreshData(); showMessage("Salvo!");
         document.getElementById("addButton").textContent = "Adicionar Item";
         setTimeout(saveToCloud, 300);
