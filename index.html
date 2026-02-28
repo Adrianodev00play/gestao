@@ -2,50 +2,100 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Estoque Pro - Nuvem ImgBB</title>
+  <title>Estoque Pro - AutoPeças</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* DESIGN ORIGINAL RIGOROSAMENTE MANTIDO */
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #0f0f0f; color: #eee; margin: 0; padding: 12px; }
     h1 { text-align: center; margin-bottom: 5px; }
     #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
     #dataSize { text-align: center; color: #888; font-size: 11px; margin-bottom: 15px; }
-    
-    #menuButton { 
-      position: fixed; top: 12px; left: 12px; background: transparent; color: #fff; 
-      border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px; 
-      font-weight: bold; z-index: 900; cursor: pointer; display: flex; align-items: center; 
-      justify-content: center; padding-bottom: 4px;
-    }
 
-    #syncStatus {
-      position: fixed; top: 10px; right: 10px; font-size: 24px; display: none; z-index: 3000;
+    #menuButton {
+      background: transparent; color: #fff;
+      border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px;
+      font-weight: bold; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; margin: 0; padding: 0;
     }
+    #syncStatus { position: fixed; top: 10px; right: 10px; font-size: 24px; display: none; z-index: 3000; }
 
     .card { background: #1b1b1b; padding: 12px; border-radius: 10px; margin-top: 10px; }
     input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: none; font-size: 16px; cursor: pointer; }
     input { background: #222; color: #fff; }
     #addButton { background: #4caf50; color: #000; font-weight: bold; }
     #searchButton { background: #4caf50; color: #000; font-weight: bold; }
-    
     #uploadStatus { display: none !important; }
 
+    /* Botões de ação */
+    #btnScan { background: linear-gradient(135deg, #ff6b35, #f7931e); color: #000; font-weight: bold; }
+    #btnIA   { background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; font-weight: bold; }
+    #btnCam  { background: #2196f3; color: white; }
+
+    .scan-hint { font-size: 11px; color: #4caf50; text-align: center; margin-top: 4px; display: none; }
+
+    /* Câmera foto */
     #camArea { display: none; margin: 10px auto; width: 100%; max-width: 300px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; position: relative; background: #000; }
     #video { width: 100%; height: 100%; object-fit: cover; }
     #shutter { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 55px; height: 55px; background: white; border: 4px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 10; }
-    #previewContainer { position: relative; width: 100%; max-width: 300px; margin: 10px auto; display: none; }
-    #photoPreview { width: 100%; height: 200px; object-fit: contain; background: #222; border-radius: 8px; border: 1px solid #333; font-size: 12px; }
+    #previewContainer { position: relative; width: 100%; max-width: 300px; margin: 10px auto; display: none; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; }
+    #photoPreview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
     #removePhotoBtn { position: absolute; top: -10px; right: -10px; background: #f44336; color: white; border: 2px solid #1b1b1b; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 20; }
 
+    /* ===== OVERLAY IA ===== */
+    #iaOverlay {
+      position: fixed; inset: 0; background: #000; z-index: 4000;
+      display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    }
+    #iaOverlay.active { display: flex; }
+    #iaHeader { width: 100%; padding: 15px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.85); z-index: 10; }
+    #iaHeader h3 { margin: 0; color: #a855f7; font-size: 16px; }
+    #closeIABtn { background: #f44336; color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; width: auto; margin: 0; }
+    #iaCamArea { position: relative; width: 100%; flex: 1; overflow: hidden; background: #000; }
+    #iaVideo { width: 100%; height: 100%; object-fit: cover; }
+    #iaGuide {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 85%; max-width: 340px; height: 55%; max-height: 300px;
+      border: 3px dashed #a855f7; border-radius: 12px; z-index: 20; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #iaGuide span { color: rgba(168,85,247,0.7); font-size: 12px; text-align: center; padding: 10px; }
+    #iaShutter {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 65px; height: 65px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      border: 4px solid rgba(255,255,255,0.3);
+      z-index: 30; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+    #iaStatus { width: 100%; padding: 12px 15px; text-align: center; background: rgba(0,0,0,0.9); color: #aaa; font-size: 13px; z-index: 10; min-height: 48px; }
+    #iaStatus.thinking { color: #a855f7; }
+    #iaStatus.success { color: #4caf50; font-weight: bold; }
+    #iaStatus.error { color: #f44336; }
+
+    /* Painel resultado IA */
+    #iaResult {
+      display: none; width: 100%; background: #1b1b1b; padding: 15px; z-index: 10;
+      max-height: 60vh; overflow-y: auto;
+    }
+    #iaResult h4 { margin: 0 0 8px 0; color: #a855f7; font-size: 15px; }
+    #ia_origem { font-size: 11px; color: #a855f7; margin-bottom: 10px; text-align: center; }
+    .ia-field { margin-bottom: 10px; }
+    .ia-field label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+    .ia-field input { background: #2a2a2a; color: #fff; border: 1px solid #555; margin: 0; }
+    #iaConfirmBtn { background: linear-gradient(135deg,#7c3aed,#a855f7); color: #fff; font-weight: bold; margin-top: 10px; }
+    #iaCancelBtn { background: #555; color: #fff; margin-top: 6px; }
+    #iaRetryBtn { background: #333; color: #a855f7; border: 1px solid #a855f7; margin-top: 6px; font-size: 13px; }
+
+    /* Preview da foto da IA */
+    #iaPhotoThumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #a855f7; float: right; margin-left: 10px; cursor: pointer; display: none; }
+
+    /* Item cards */
     .item-card { background: #3a3a3a; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2196f3; }
     .item-info { flex: 1; display: flex; align-items: center; gap: 10px; }
     .item-img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; background: #222; flex-shrink: 0; cursor: pointer; }
     .item-text { display: flex; flex-direction: column; gap: 2px; }
-    .item-obs { font-size: 13px; color: #4caf50; font-style: italic; }
-    
     mark { background: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
-
     .action-buttons { display: flex; gap: 8px; }
     .action-buttons button { width: 35px; height: 35px; padding: 0; }
 
@@ -54,213 +104,513 @@
     #zoomImg { max-width: 95%; max-height: 80vh; border-radius: 8px; }
     #menuModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1b1b1b; padding: 20px; border-radius: 12px; display: none; z-index: 1200; min-width: 280px; box-shadow: 0 0 15px #000; overflow-y: auto; max-height: 90vh; }
     #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; }
+
+    input.filled-by-scan { border: 1px solid #4caf50 !important; background: #1a2e1a !important; }
+    input.filled-by-ia { border: 1px solid #a855f7 !important; background: #1e1a2e !important; }
+
+    /* Loading spinner inline */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: #a855f7; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Divisor entre botões */
+    .btn-divider { text-align: center; color: #555; font-size: 11px; margin: 8px 0 2px; }
   </style>
 </head>
 <body>
 
   <div id="syncStatus">✅</div>
-  <button id="menuButton" onclick="openMenu()">⚙️</button>
+  <div style="position:fixed; top:10px; left:8px; z-index:900; display:flex; flex-direction:column; align-items:center; gap:4px;">
+    <button id="menuButton" onclick="openMenu()">⚙️</button>
+    <div id="iaToggleWrap" style="display:flex; align-items:center; gap:5px;">
+      <label style="font-size:10px; color:#aaa; margin:0;">IA</label>
+      <div onclick="toggleIA()" style="cursor:pointer; width:40px; height:22px; border-radius:11px; position:relative; transition:background 0.3s;" id="iaToggleTrack">
+        <div id="iaToggleThumb" style="position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s;"></div>
+      </div>
+    </div>
+  </div>
   <h1>Meu Estoque</h1>
   <div id="globalCounter">Carregando...</div>
   <div id="dataSize">Espaço: 0 KB</div>
-  
+
   <button id="searchButton" onclick="openSearch()">🔍 Pesquisar item</button>
 
   <div class="card">
+
+    <div id="scanHint" class="scan-hint">✅ Dados capturados — confira e preencha o restante</div>
+
     <input id="f_nome" placeholder="Nome do produto" autocomplete="off" spellcheck="false" />
-    <input id="f_pos" placeholder="Posição (Ex: A1)" autocomplete="off" spellcheck="false" />
-    <input id="f_preco" placeholder="Preço ou Obs" autocomplete="off" spellcheck="false" />
-    
-    <button id="btnCam" onclick="toggleCamera()" style="background:#2196f3; color:white;">📷 Abrir Câmera</button>
-    <div id="camArea"><video id="video" autoplay playsinline></video><div id="shutter" onclick="takePhoto()"></div></div>
-    
+    <input id="f_pos"  placeholder="Posição (Ex: A1)" autocomplete="off" spellcheck="false" />
+    <input id="f_preco" placeholder="Preço ou Obs"   autocomplete="off" spellcheck="false" />
+
+    <button id="btnIA" onclick="handleCameraBtn()">📷 Foto + IA</button>
+
+    <!-- Câmera inline (usada quando IA está desativada) -->
+    <div id="camArea" style="display:none; margin:10px auto; width:100%; max-width:340px; border-radius:12px; overflow:hidden; position:relative; background:#000; aspect-ratio:4/3;">
+      <video id="video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+      <div id="shutter" onclick="takePhotoSimple()" style="position:absolute;bottom:15px;left:50%;transform:translateX(-50%);width:55px;height:55px;background:white;border:4px solid rgba(0,0,0,0.3);border-radius:50%;cursor:pointer;z-index:10;"></div>
+    </div>
+
     <div id="previewContainer">
-        <button id="removePhotoBtn" onclick="clearCurrentPhoto()">✕</button>
-        <img id="photoPreview" onclick="zoomImage(this.src)" />
+      <button id="removePhotoBtn" onclick="clearCurrentPhoto()">✕</button>
+      <img id="photoPreview" onclick="zoomImage(this.src)" />
+      <div id="uploadingIndicator" style="display:none; text-align:center; color:#a855f7; font-size:12px; margin-top:4px;">
+        <span class="spinner"></span> Enviando foto...
+      </div>
     </div>
 
     <button id="addButton" onclick="addItem()">Adicionar Item</button>
     <div id="message" style="text-align:center; color:#4caf50; margin-top:10px;"></div>
-    
+
     <div id="folder" onclick="toggleFolder()" style="cursor:pointer; background:#f39c12; color:#000; padding:10px; border-radius:8px; margin-top:15px; text-align:center; font-weight:bold;">📁 Ver últimos 50 itens</div>
     <div id="folderList" style="display:none; margin-top:10px;"></div>
   </div>
 
+  <!-- MENU CONFIGURAÇÕES -->
   <div id="modalBackdrop" onclick="closeMenu()"></div>
   <div id="menuModal">
     <h3>Configurações</h3>
-    <label style="font-size: 11px; color: #2196f3;">Chave API ImgBB:</label>
-    <input id="f_key" placeholder="Sua API KEY ImgBB" type="text" autocomplete="off" style="-webkit-text-security: disc;" />
-    
-    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-    <label style="font-size: 11px; color: #4caf50;">Firebase URL (Opcional):</label>
-    <input id="f_cloud" placeholder="https://seu-projeto.firebaseio.com/.json" type="text" style="font-size:12px;" autocomplete="off" />
-    
-    <div style="margin-top:10px; display: flex; flex-direction: column; gap: 8px;">
-        <button onclick="loadFromCloud()" style="background:#f39c12; color:#000; font-size:12px; font-weight:bold;">☁️ Baixar da Nuvem (Firebase)</button>
-        <button onclick="clearCloudData()" style="background:#f44336; color:#fff; font-size:12px; font-weight:bold;">🗑️ Apagar Tudo da Nuvem</button>
+
+    <label style="font-size:11px; color:#a855f7;">🤖 Chave API Groq (IA gratuita):</label>
+    <input id="f_groq" placeholder="gsk_..." type="text" autocomplete="off" style="-webkit-text-security:disc; font-size:13px;" />
+    <div style="font-size:10px; color:#666; margin-top:4px; line-height:1.4;">
+      Grátis em <span style="color:#a855f7;">console.groq.com</span> → API Keys → Create API Key
     </div>
 
-    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
-    <button onclick="downloadBackup()" style="background:#2196f3; color:white;">📥 Backup Offline JSON</button>
-    <input type="file" id="fileInput" accept=".json" onchange="restoreBackup(event)" style="font-size: 11px;"/>
-    <button onclick="closeMenu()" style="background:#555; color:white; margin-top:15px;">Fechar</button>
+    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+    <label style="font-size:11px; color:#2196f3;">Chave API ImgBB (fotos na nuvem):</label>
+    <input id="f_key" placeholder="Sua API KEY ImgBB" type="text" autocomplete="off" style="-webkit-text-security:disc;" />
+
+    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+    <label style="font-size:11px; color:#4caf50;">Firebase URL (Opcional):</label>
+    <input id="f_cloud" placeholder="https://seu-projeto.firebaseio.com/.json" type="text" style="font-size:12px;" autocomplete="off" />
+    <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+      <button onclick="loadFromCloud()" style="background:#f39c12;color:#000;font-size:12px;font-weight:bold;">☁️ Baixar da Nuvem (Firebase)</button>
+      <button onclick="clearCloudData()" style="background:#f44336;color:#fff;font-size:12px;font-weight:bold;">🗑️ Apagar Tudo da Nuvem</button>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+    <button onclick="downloadBackup()" style="background:#2196f3;color:white;">📥 Backup Offline JSON</button>
+    <input type="file" id="fileInput" accept=".json" onchange="restoreBackup(event)" style="font-size:11px;" />
+    <button onclick="closeMenu()" style="background:#555;color:white;margin-top:15px;">Fechar</button>
   </div>
 
+  <!-- BUSCA -->
   <div id="searchOverlay">
     <input id="searchInput" placeholder="Buscar..." oninput="renderSearchResults()" autocomplete="off" spellcheck="false" />
-    <button onclick="closeSearch()" style="background:#555; color:white;">Voltar</button>
-    <div id="searchResults" style="margin-top:10px; overflow-y: auto; flex: 1;"></div>
+    <button onclick="closeSearch()" style="background:#555;color:white;">Voltar</button>
+    <div id="searchResults" style="margin-top:10px;overflow-y:auto;flex:1;"></div>
   </div>
 
-  <div id="zoomOverlay" onclick="closeZoom()">
-      <img id="zoomImg" src="" />
+  <!-- ZOOM FOTO -->
+  <div id="zoomOverlay" onclick="closeZoom()"><img id="zoomImg" src="" /></div>
+
+  <!-- ===== OVERLAY IA ===== -->
+  <div id="iaOverlay">
+    <div id="iaHeader">
+      <h3>🤖 Fotografar Embalagem</h3>
+      <button id="closeIABtn" onclick="closeIA()">✕ Fechar</button>
+    </div>
+    <div id="iaCamArea">
+      <video id="iaVideo" autoplay playsinline></video>
+      <div id="iaGuide"><span>Enquadre a embalagem da peça aqui</span></div>
+      <div id="iaShutter" onclick="captureAndAnalyze()">📷</div>
+    </div>
+    <div id="iaStatus">Enquadre e toque em 📷 — a foto será salva E a IA vai ler o texto</div>
+    <div id="iaResult">
+      <img id="iaPhotoThumb" onclick="zoomImage(this.src)" />
+      <h4>🤖 Tudo que a IA leu:</h4>
+      <div id="ia_origem"></div>
+      <textarea id="ia_texto" rows="4" style="width:100%;background:#2a2a2a;color:#fff;border:1px solid #a855f7;border-radius:8px;padding:10px;font-size:15px;margin-top:6px;resize:vertical;" placeholder="Texto lido pela IA..."></textarea>
+      <div style="font-size:11px;color:#888;margin-top:4px;">Edite acima se precisar corrigir algo</div>
+      <button id="iaConfirmBtn" onclick="confirmIA()">✅ Usar esse texto no campo Nome</button>
+      <button id="iaRetryBtn" onclick="retryIA()">📷 Fotografar novamente</button>
+      <button id="iaCancelBtn" onclick="closeIA()">✕ Cancelar</button>
+    </div>
   </div>
 
   <script>
     let db, estoque = [], editId = null, stream = null, currentBlob = null, currentPhotoUrl = null;
+    let iaStream = null, iaCapturedBlob = null;
 
+    // ==========================================
+    // INIT
+    // ==========================================
     window.addEventListener('load', () => {
-        const savedKey = localStorage.getItem("imgbb_api_key");
-        if (savedKey) document.getElementById("f_key").value = savedKey;
-        const savedFb = localStorage.getItem("firebase_url");
-        if (savedFb) document.getElementById("f_cloud").value = savedFb;
-        
-        const request = indexedDB.open("EstoqueImgBB", 1);
-        request.onupgradeneeded = (e) => {
-          db = e.target.result;
-          if (!db.objectStoreNames.contains("itens")) db.createObjectStore("itens", { keyPath: "id", autoIncrement: true });
-        };
-        request.onsuccess = (e) => { db = e.target.result; refreshData(); };
+      ['imgbb_api_key','firebase_url','groq_api_key'].forEach(k => {
+        const v = localStorage.getItem(k);
+        const ids = { imgbb_api_key:'f_key', firebase_url:'f_cloud', groq_api_key:'f_groq' };
+        if (v && document.getElementById(ids[k])) document.getElementById(ids[k]).value = v;
+      });
+      const req = indexedDB.open("EstoqueImgBB", 1);
+      req.onupgradeneeded = e => {
+        db = e.target.result;
+        if (!db.objectStoreNames.contains("itens")) db.createObjectStore("itens", { keyPath:"id", autoIncrement:true });
+      };
+      req.onsuccess = e => {
+        db = e.target.result;
+        cleanHtmlFromNames(); // limpa tags HTML dos nomes já salvos
+        refreshData();
+      };
+      updateIAToggleUI();
     });
 
-    document.getElementById("f_key").addEventListener('input', (e) => localStorage.setItem("imgbb_api_key", e.target.value));
-    document.getElementById("f_cloud").addEventListener('input', (e) => localStorage.setItem("firebase_url", e.target.value));
+    function stripHtml(str) {
+      if (!str) return str;
+      // Remove padrões tipo "ark>Filtroark>" que são resquícios de <mark>
+      str = str.replace(/ark>/gi, ""); // remove resquícios de </mark>
+      str = str.replace(/\/?mark>/gi, ""); // remove mark> e /mark>
+      str = str.replace(/<[^>]*>/g, ""); // remove tags HTML normais
+      str = str.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"');
+      return str.trim();
+    }
 
-    function refreshData() {
-      const store = db.transaction(["itens"], "readonly").objectStore("itens");
-      store.getAll().onsuccess = (ev) => {
-        estoque = ev.target.result;
-        document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
-        calculateDataSize();
-        renderFolderList();
+    function cleanHtmlFromNames() {
+      const store = db.transaction(["itens"],"readonly").objectStore("itens");
+      store.getAll().onsuccess = ev => {
+        const items = ev.target.result;
+        const dirty = items.filter(i => i.nome && (
+          i.nome.includes("<") || i.nome.includes(">") ||
+          i.nome.includes("ark>") || i.nome.includes("mark>") ||
+          i.nome.includes("&lt;") || i.nome.includes("&gt;")
+        ));
+        if (!dirty.length) return;
+        const tx = db.transaction(["itens"],"readwrite");
+        const s = tx.objectStore("itens");
+        dirty.forEach(i => { i.nome = stripHtml(i.nome); s.put(i); });
+        tx.oncomplete = () => refreshData();
       };
     }
 
-    async function saveToCloud() {
-        const url = document.getElementById("f_cloud").value.trim();
-        if(!url || !url.endsWith(".json")) return;
-        try {
-            await fetch(url, { method: 'PUT', body: JSON.stringify(estoque) });
-            showSyncCheck();
-        } catch(e) { console.error("Erro na sincronização"); }
+    document.getElementById("f_key").addEventListener('input', e => localStorage.setItem("imgbb_api_key", e.target.value));
+    document.getElementById("f_cloud").addEventListener('input', e => localStorage.setItem("firebase_url", e.target.value));
+    document.getElementById("f_groq").addEventListener('input', e => localStorage.setItem("groq_api_key", e.target.value));
+
+    // ==========================================
+    // TOGGLE IA ON/OFF
+    // ==========================================
+    let iaEnabled = localStorage.getItem("ia_enabled") !== "false";
+
+    function toggleIA() {
+      iaEnabled = !iaEnabled;
+      localStorage.setItem("ia_enabled", iaEnabled);
+      updateIAToggleUI();
     }
 
-    async function clearCloudData() {
-        const url = document.getElementById("f_cloud").value.trim();
-        if(!url) return alert("Insira a URL do Firebase.");
-        if(!confirm("CUIDADO! Isso apagará TODOS os dados do servidor.")) return;
-        try {
-            await fetch(url, { method: 'PUT', body: JSON.stringify([]) });
-            alert("Nuvem limpa!"); showSyncCheck();
-        } catch(e) { alert("Erro ao limpar."); }
+    function updateIAToggleUI() {
+      const track = document.getElementById("iaToggleTrack");
+      const thumb = document.getElementById("iaToggleThumb");
+      const btn   = document.getElementById("btnIA");
+      if (iaEnabled) {
+        track.style.background = "#4caf50";
+        thumb.style.left       = "21px";
+        btn.textContent        = "📷 Foto + IA";
+        btn.style.background   = "linear-gradient(135deg, #7c3aed, #a855f7)";
+        btn.style.color        = "#fff";
+        stopSimpleCamera();
+      } else {
+        track.style.background = "#555";
+        thumb.style.left       = "3px";
+        btn.textContent        = "📷 Foto";
+        btn.style.background   = "#2196f3";
+        btn.style.color        = "#fff";
+      }
     }
 
-    function showSyncCheck() {
-        const check = document.getElementById("syncStatus");
-        check.style.display = "block";
-        setTimeout(() => { check.style.display = "none"; }, 1000);
+    function handleCameraBtn() {
+      if (iaEnabled) {
+        openIA();
+      } else {
+        toggleSimpleCamera();
+      }
     }
 
-    async function loadFromCloud() {
-        const url = document.getElementById("f_cloud").value.trim();
-        if(!url) return alert("URL Firebase necessária.");
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            if(data) {
-                const tx = db.transaction(["itens"], "readwrite");
-                const store = tx.objectStore("itens");
-                store.clear().onsuccess = () => {
-                    data.forEach(item => { if(item) { delete item.id; store.add(item); } });
-                };
-                tx.oncomplete = () => location.reload();
-            }
-        } catch(e) { alert("Erro ao baixar."); }
+    let simpleStream = null;
+    async function toggleSimpleCamera() {
+      const camArea = document.getElementById("camArea");
+      if (simpleStream) { stopSimpleCamera(); return; }
+      try {
+        simpleStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment", width:{ideal:1280}, height:{ideal:720} } });
+        document.getElementById("video").srcObject = simpleStream;
+        camArea.style.display = "block";
+      } catch(e) { alert("Erro ao acessar câmera."); }
     }
 
-    function calculateDataSize() {
-        const bytes = new Blob([JSON.stringify(estoque)]).size;
-        document.getElementById("dataSize").textContent = `Espaço: ${(bytes / 1024).toFixed(2)} KB`;
+    function stopSimpleCamera() {
+      if (simpleStream) { simpleStream.getTracks().forEach(t => t.stop()); simpleStream = null; }
+      document.getElementById("camArea").style.display = "none";
     }
 
-    async function toggleCamera() {
-        const camArea = document.getElementById("camArea"), btn = document.getElementById("btnCam"), video = document.getElementById("video");
-        if (!stream) {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: {
-  facingMode: "environment",
-  width:  { ideal: 1280 },
-  height: { ideal: 720 }
-} });
-                video.srcObject = stream; camArea.style.display = "block";
-                btn.textContent = "✖ Fechar";
-            } catch (err) { alert("Erro câmera."); }
-        } else { stopCamera(); }
+    async function takePhotoSimple() {
+      const v = document.getElementById("video");
+      if (!v.videoWidth) return;
+      const canvas = document.createElement("canvas");
+      const size = Math.min(v.videoWidth, v.videoHeight);
+      canvas.width = 1080; canvas.height = 1080;
+      canvas.getContext("2d").drawImage(v, (v.videoWidth-size)/2, (v.videoHeight-size)/2, size, size, 0, 0, 1080, 1080);
+      stopSimpleCamera();
+      currentBlob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.85));
+      currentPhotoUrl = URL.createObjectURL(currentBlob);
+      document.getElementById("photoPreview").src = currentPhotoUrl;
+      document.getElementById("previewContainer").style.display = "block";
     }
 
-    function stopCamera() {
-        if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
-        document.getElementById("camArea").style.display = "none";
-        document.getElementById("btnCam").textContent = "📷 Abrir Câmera";
+    // ==========================================
+    // IA — FOTOGRAFAR E IDENTIFICAR
+    // ==========================================
+    async function openIA() {
+      if (iaEnabled) {
+        const key = localStorage.getItem("groq_api_key");
+        if (!key) {
+          alert("Configure a chave API do Groq nas ⚙️ Configurações!\n\nCrie grátis em: console.groq.com → API Keys");
+          openMenu(); return;
+        }
+      }
+      document.getElementById("iaOverlay").classList.add("active");
+      document.getElementById("iaResult").style.display = "none";
+      document.getElementById("iaStatus").textContent = iaEnabled
+        ? "Enquadre a embalagem e toque em 📷 para identificar"
+        : "Enquadre o produto e toque em 📷 para tirar a foto";
+      document.getElementById("iaStatus").className = "";
+      document.getElementById("iaShutter").style.display = "flex";
+      document.getElementById("iaCamArea").style.flex = "1";
+      iaCapturedBlob = null;
+      await startIACamera();
     }
 
-    async function takePhoto() {
-        const canvas = document.createElement("canvas");
-        canvas.width = 1080; canvas.height = 1080;
-        const ctx = canvas.getContext("2d"), v = document.getElementById("video");
-        const vw = v.videoWidth;
-const vh = v.videoHeight;
-
-const size = Math.min(vw, vh);
-const sx = (vw - size) / 2;
-const sy = (vh - size) / 2;
-
-ctx.drawImage(
-  v,
-  sx, sy, size, size,   // recorte da câmera
-  0, 0, canvas.width, canvas.height // destino no canvas
-);
-        stopCamera();
-        currentBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
-        currentPhotoUrl = URL.createObjectURL(currentBlob);
-        document.getElementById("photoPreview").src = currentPhotoUrl;
-        document.getElementById("previewContainer").style.display = "block";
+    function closeIA() {
+      stopIACamera();
+      document.getElementById("iaOverlay").classList.remove("active");
+      document.getElementById("iaResult").style.display = "none";
     }
 
-    function clearCurrentPhoto() {
-        currentBlob = null; currentPhotoUrl = null;
-        document.getElementById("previewContainer").style.display = "none";
+    async function startIACamera() {
+      try {
+        iaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment", width:{ideal:1280}, height:{ideal:960} } });
+        document.getElementById("iaVideo").srcObject = iaStream;
+      } catch(e) {
+        document.getElementById("iaStatus").textContent = "❌ Erro ao acessar câmera: " + e.message;
+        document.getElementById("iaStatus").className = "error";
+      }
     }
 
-    async function backgroundUpload(itemId, blob) {
-        const key = document.getElementById("f_key").value;
-        if (!key) return;
-        const formData = new FormData();
-        formData.append("image", blob);
-        try {
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method: "POST", body: formData });
-            const json = await res.json();
-            if (json.success) {
-                const tx = db.transaction(["itens"], "readwrite");
-                const store = tx.objectStore("itens");
-                store.get(itemId).onsuccess = (e) => {
-                    const item = e.target.result;
-                    if(item) { item.foto = json.data.url; store.put(item); }
-                };
-                tx.oncomplete = () => { refreshData(); setTimeout(saveToCloud, 500); };
-            }
-        } catch (e) { console.error("Erro upload"); }
+    function stopIACamera() {
+      if (iaStream) { iaStream.getTracks().forEach(t => t.stop()); iaStream = null; }
+    }
+
+    async function captureAndAnalyze() {
+      const video = document.getElementById("iaVideo");
+      if (!video.videoWidth) { alert("Câmera ainda carregando, tente novamente."); return; }
+
+      // Captura frame
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      stopIACamera();
+
+      document.getElementById("iaShutter").style.display = "none";
+      document.getElementById("iaCamArea").style.flex = "0";
+      document.getElementById("iaStatus").className = "thinking";
+      document.getElementById("iaStatus").innerHTML = iaEnabled
+        ? '<span class="spinner"></span> Lendo texto e salvando foto ao mesmo tempo...'
+        : '<span class="spinner"></span> Salvando foto...';
+
+      // Converte para blob e base64
+      iaCapturedBlob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.85));
+
+      // Mostra thumb no overlay
+      const thumb = document.getElementById("iaPhotoThumb");
+      thumb.src = URL.createObjectURL(iaCapturedBlob);
+      thumb.style.display = "block";
+
+      // Define a foto do item já agora (URL local temporária)
+      currentBlob = iaCapturedBlob;
+      currentPhotoUrl = URL.createObjectURL(iaCapturedBlob);
+      document.getElementById("photoPreview").src = currentPhotoUrl;
+      document.getElementById("previewContainer").style.display = "block";
+      document.getElementById("uploadingIndicator").style.display = "block";
+
+      // Se estiver EDITANDO ou IA DESATIVADA, só salva a foto e fecha — sem tela de resultado
+      if (editId || !iaEnabled) {
+        await uploadImgBBNow(iaCapturedBlob);
+        document.getElementById("uploadingIndicator").style.display = "none";
+        closeIA();
+        showMessage(editId ? "📸 Foto atualizada!" : "📸 Foto salva!");
+        return;
+      }
+
+      // Novo item com IA — dispara upload ImgBB e análise IA em PARALELO
+      const base64 = await blobToBase64(iaCapturedBlob);
+      const [_upload, _ia] = await Promise.allSettled([
+        uploadImgBBNow(iaCapturedBlob),
+        analyzeWithGemini(base64)
+      ]);
+
+      document.getElementById("uploadingIndicator").style.display = "none";
+    }
+
+    // Upload imediato retornando URL (sem precisar de itemId ainda)
+    async function uploadImgBBNow(blob) {
+      const key = document.getElementById("f_key").value;
+      if (!key) return;
+      try {
+        document.getElementById("uploadingIndicator").style.display = "block";
+        const form = new FormData(); form.append("image", blob);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method:"POST", body:form });
+        const json = await res.json();
+        if (json.success) {
+          // Substitui URL local pela URL permanente do ImgBB
+          currentPhotoUrl = json.data.url;
+          document.getElementById("photoPreview").src = currentPhotoUrl;
+          showMessage("📸 Foto salva no ImgBB!");
+        }
+      } catch(e) { console.error("ImgBB upload error:", e); }
+      finally { document.getElementById("uploadingIndicator").style.display = "none"; }
+    }
+
+    async function analyzeWithGemini(base64) {
+      const key = localStorage.getItem("groq_api_key");
+      if (!key) {
+        document.getElementById("iaStatus").textContent = "❌ Configure a chave API do Groq nas ⚙️ Configurações";
+        document.getElementById("iaStatus").className = "error";
+        document.getElementById("iaResult").style.display = "block";
+        document.getElementById("ia_origem").textContent = "⚙️ Acesse console.groq.com → API Keys → cole nas configurações";
+        return;
+      }
+
+      const prompt = `Analise esta imagem de embalagem de peça automotiva e retorne APENAS uma linha com:
+
+NOME DA PEÇA + APLICAÇÃO (veículos compatíveis se houver)
+
+Regras:
+- Inclua: nome da peça, referência/código, veículos compatíveis
+- Exclua: nome da marca/fabricante, CNPJ, endereço, site, telefone, textos de propaganda, certificações, instruções
+- Se houver código/referência da peça, coloque entre parênteses no final
+- Se houver veículos compatíveis, coloque após o nome da peça
+
+Exemplos de saída correta:
+Interruptor de Óleo F250/F350/F1200/F1400 após 98 (7296)
+Bucha do Estabilizador Gol/Parati/Saveiro 95-05 (NK-1234)
+Filtro de Óleo Civic/City 2006-2012 (PH4967)
+
+Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
+
+      try {
+        document.getElementById("iaStatus").innerHTML = '<span class="spinner"></span> IA analisando a embalagem...';
+
+        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key
+          },
+          body: JSON.stringify({
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            max_tokens: 512,
+            temperature: 0.1,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: "data:image/jpeg;base64," + base64 } }
+              ]
+            }]
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error?.message || "Erro " + resp.status);
+        }
+
+        const data = await resp.json();
+        const text = data.choices?.[0]?.message?.content || "";
+        if (!text.trim()) throw new Error("IA não retornou texto");
+        showIAResult(text.trim());
+
+      } catch(e) {
+        console.error("Groq error:", e);
+        document.getElementById("iaStatus").textContent = "❌ Erro: " + e.message;
+        document.getElementById("iaStatus").className = "error";
+        document.getElementById("iaResult").style.display = "block";
+        document.getElementById("ia_texto").value = "";
+        document.getElementById("ia_origem").textContent = "❌ Falha na leitura — verifique a chave ou tente novamente";
+      }
+    }
+
+    function showIAResult(texto) {
+      document.getElementById("ia_texto").value = texto;
+      document.getElementById("ia_origem").textContent = "🤖 Texto lido pelo Groq — edite se precisar";
+      document.getElementById("iaStatus").textContent = "✅ Leitura concluída!";
+      document.getElementById("iaStatus").className = "success";
+      document.getElementById("iaResult").style.display = "block";
+    }
+
+    function confirmIA() {
+      const texto = document.getElementById("ia_texto").value.trim();
+
+      // Restaura texto padrão do botão
+      document.getElementById("iaConfirmBtn").textContent = "✅ Usar esse texto no campo Nome";
+
+      // Se estiver editando ou IA off, só fecha — foto já foi salva
+      if (editId || !iaEnabled) {
+        closeIA();
+        showMessage(editId ? "📸 Foto atualizada!" : "📸 Foto salva!");
+        return;
+      }
+
+      // Novo item com IA — aplica o texto no campo nome
+      if (!texto) return;
+      document.getElementById("f_nome").value = texto;
+      document.getElementById("f_nome").classList.add("filled-by-ia");
+      document.getElementById("scanHint").style.display = "block";
+      document.getElementById("scanHint").textContent = "🤖 Texto da IA aplicado — edite o nome e preencha a prateleira";
+
+      closeIA();
+      setTimeout(() => {
+        document.getElementById("f_nome").focus();
+        document.getElementById("f_nome").scrollIntoView({ behavior:"smooth", block:"center" });
+      }, 300);
+      showMessage("🤖 Texto aplicado! Edite o nome e preencha a prateleira.");
+    }
+
+    async function retryIA() {
+      document.getElementById("iaResult").style.display = "none";
+      document.getElementById("iaPhotoThumb").style.display = "none";
+      document.getElementById("iaShutter").style.display = "flex";
+      document.getElementById("iaCamArea").style.flex = "1";
+      document.getElementById("iaStatus").textContent = "Enquadre a embalagem e toque no botão 🤖 para identificar";
+      document.getElementById("iaStatus").className = "";
+      iaCapturedBlob = null;
+      await startIACamera();
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(blob);
+      });
+    }
+
+    // ==========================================
+    // CAMPO LIMPO AO EDITAR MANUALMENTE
+    // ==========================================
+    document.addEventListener("input", e => {
+      if (e.target.classList.contains("filled-by-scan") || e.target.classList.contains("filled-by-ia")) {
+        e.target.classList.remove("filled-by-scan", "filled-by-ia");
+      }
+    });
+
+    // ==========================================
+    // BANCO DE DADOS / CRUD
+    // ==========================================
+    function refreshData() {
+      db.transaction(["itens"],"readonly").objectStore("itens").getAll().onsuccess = ev => {
+        estoque = ev.target.result;
+        document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
+        calculateDataSize(); renderFolderList();
+      };
     }
 
     function addItem() {
@@ -268,135 +618,206 @@ ctx.drawImage(
       const prateleira = document.getElementById("f_pos").value.trim();
       const preco = document.getElementById("f_preco").value.trim();
       if (!nome || !prateleira) return alert("Preencha Nome e Posição!");
-      
-      const item = { nome, prateleira, preco, foto: currentPhotoUrl };
-      const tx = db.transaction(["itens"], "readwrite");
+
+      document.getElementById("f_nome").classList.remove("filled-by-scan","filled-by-ia");
+      document.getElementById("f_preco").classList.remove("filled-by-scan","filled-by-ia");
+      document.getElementById("scanHint").style.display = "none";
+
+      const ean = window._pendingEan || null;
+      window._pendingEan = null;
+
+      const item = { nome, prateleira, preco, foto: currentPhotoUrl, ean };
+      const tx = db.transaction(["itens"],"readwrite");
       const store = tx.objectStore("itens");
-      
-      if (editId) { 
-          item.id = editId; store.put(item); 
-          if (currentBlob) backgroundUpload(editId, currentBlob); 
-          editId = null; 
-      } else { 
-          const addReq = store.add(item); 
-          addReq.onsuccess = (e) => { if (currentBlob) backgroundUpload(e.target.result, currentBlob); }; 
+
+      if (editId) {
+        item.id = editId; store.put(item);
+        if (currentBlob && currentPhotoUrl && currentPhotoUrl.startsWith("blob:")) backgroundUpload(editId, currentBlob);
+        editId = null;
+      } else {
+        const addReq = store.add(item);
+        addReq.onsuccess = e => {
+          if (currentBlob && currentPhotoUrl && currentPhotoUrl.startsWith("blob:")) backgroundUpload(e.target.result, currentBlob);
+        };
       }
       tx.oncomplete = () => {
-        document.getElementById("f_nome").value = ""; document.getElementById("f_preco").value = "";
-        clearCurrentPhoto(); refreshData(); showMessage("Salvo!");
+        document.getElementById("f_nome").value = "";
+        document.getElementById("f_preco").value = "";
+        clearCurrentPhoto(); refreshData(); showMessage("✅ Salvo!");
         document.getElementById("addButton").textContent = "Adicionar Item";
         setTimeout(saveToCloud, 300);
       };
     }
 
     function editItem(id) {
-        const item = estoque.find(i => i.id === id);
-        if (!item) return;
-        document.getElementById("f_nome").value = item.nome;
-        document.getElementById("f_pos").value = item.prateleira;
-        document.getElementById("f_preco").value = item.preco || "";
-        if (item.foto) { 
-            document.getElementById("photoPreview").src = item.foto; 
-            document.getElementById("previewContainer").style.display = "block"; 
-            currentPhotoUrl = item.foto;
-        }
-        editId = id; document.getElementById("addButton").textContent = "Salvar Alteração";
-        closeSearch(); window.scrollTo(0,0);
+      const item = estoque.find(i => i.id === id); if (!item) return;
+      document.getElementById("f_nome").value = item.nome;
+      document.getElementById("f_pos").value = item.prateleira;
+      document.getElementById("f_preco").value = item.preco || "";
+      if (item.foto) {
+        document.getElementById("photoPreview").src = item.foto;
+        document.getElementById("previewContainer").style.display = "block";
+        currentPhotoUrl = item.foto;
+      }
+      editId = id; document.getElementById("addButton").textContent = "Salvar Alteração";
+      closeSearch(); window.scrollTo(0,0);
+    }
+
+    function removeItem(id) {
+      if (!confirm("Apagar?")) return;
+      db.transaction(["itens"],"readwrite").objectStore("itens").delete(id).onsuccess = () => {
+        db.transaction(["itens"],"readonly").objectStore("itens").getAll().onsuccess = ev => {
+          estoque = ev.target.result;
+          document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
+          calculateDataSize(); renderFolderList(); renderSearchResults();
+          setTimeout(saveToCloud, 300);
+        };
+      };
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     }
 
     function createItemCard(item, searchTerms = []) {
-        const div = document.createElement("div");
-        div.className = "item-card";
-        let n = item.nome, p = item.prateleira;
-        if(searchTerms.length > 0) {
-            searchTerms.forEach(t => {
-                const r = new RegExp(`(${t})`, "gi");
-                n = n.replace(r, "<mark>$1</mark>");
-                p = p.replace(r, "<mark>$1</mark>");
-            });
+      const div = document.createElement("div"); div.className = "item-card";
+      // Limpa HTML do texto puro ANTES de qualquer highlight
+      const nomeClean = stripHtml(item.nome);
+      const pratClean = stripHtml(item.prateleira);
+      let n = escapeHtml(nomeClean);
+      let p = escapeHtml(pratClean);
+      if (searchTerms.length > 0) {
+        // Une todos os termos num único regex para evitar que tags <mark>
+        // de uma palavra quebrem o highlight da próxima
+        const termsEscaped = searchTerms
+          .filter(t => t.length > 0)
+          .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        if (termsEscaped.length > 0) {
+          const r = new RegExp("(" + termsEscaped.join("|") + ")", "gi");
+          n = n.replace(r, "<mark>$1</mark>");
+          p = p.replace(r, "<mark>$1</mark>");
         }
-        const img = item.foto ? `<img src="${item.foto}" class="item-img" onclick="zoomImage('${item.foto}')">` : `<div class="item-img"></div>`;
-        div.innerHTML = `
-            <div class="item-info">
-                ${img}
-                <div class="item-text"><strong>${n}</strong><small style="color:#ff4444; font-weight:bold;">Pos: ${p}</small><span style="color:#4caf50; font-weight:bold;">${item.preco||""}</span></div>
-            </div>
-            <div class="action-buttons">
-                <button onclick="editItem(${item.id})" style="background:#2196f3">✏️</button>
-                <button onclick="removeItem(${item.id})" style="background:#f44336">🗑</button>
-            </div>`;
-        return div;
+      }
+      const img = item.foto ? `<img src="${item.foto}" class="item-img" onclick="zoomImage('${item.foto}')">` : `<div class="item-img"></div>`;
+      div.innerHTML = `
+        <div class="item-info">
+          ${img}
+          <div class="item-text">
+            <strong>${n}</strong>
+            <small style="color:#ff4444;font-weight:bold;">Pos: ${p}</small>
+            <span style="color:#4caf50;font-weight:bold;">${escapeHtml(item.preco||"")}</span>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button onclick="editItem(${item.id})" style="background:#2196f3">✏️</button>
+          <button onclick="removeItem(${item.id})" style="background:#f44336">🗑</button>
+        </div>`;
+      return div;
     }
 
-    function removeItem(id) { 
-        if(confirm("Apagar?")) {
-            db.transaction(["itens"],"readwrite").objectStore("itens").delete(id).onsuccess = () => {
-                const store = db.transaction(["itens"], "readonly").objectStore("itens");
-                store.getAll().onsuccess = (ev) => {
-                    estoque = ev.target.result;
-                    document.getElementById("globalCounter").textContent = "Total: " + estoque.length.toLocaleString() + " itens";
-                    calculateDataSize();
-                    renderFolderList();
-                    renderSearchResults();
-                    setTimeout(saveToCloud, 300);
-                };
-            };
-        }
-    }
-
-    function renderFolderList() { 
-        const list = document.getElementById("folderList"); 
-        list.innerHTML = ""; 
-        estoque.slice(-50).reverse().forEach(i => list.appendChild(createItemCard(i))); 
+    function renderFolderList() {
+      const list = document.getElementById("folderList"); list.innerHTML = "";
+      estoque.slice(-50).reverse().forEach(i => list.appendChild(createItemCard(i)));
     }
 
     function renderSearchResults() {
-        const inputVal = document.getElementById("searchInput").value.trim().toLowerCase();
-        const resArea = document.getElementById("searchResults");
-        resArea.innerHTML = ""; if (!inputVal) return;
-        const terms = inputVal.split(/\s+/);
-        estoque.filter(item => terms.every(t => (item.nome + " " + item.prateleira).toLowerCase().includes(t)))
-               .reverse().slice(0, 40).forEach(i => resArea.appendChild(createItemCard(i, terms)));
+      const inputVal = document.getElementById("searchInput").value.trim().toLowerCase();
+      const area = document.getElementById("searchResults");
+      area.innerHTML = ""; if (!inputVal) return;
+      const terms = inputVal.split(/\s+/);
+      estoque.filter(i => terms.every(t => (i.nome + " " + i.prateleira).toLowerCase().includes(t)))
+             .reverse().slice(0, 40).forEach(i => area.appendChild(createItemCard(i, terms)));
     }
 
-    function openSearch() { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("searchInput").focus(); }
-    
-    function closeSearch() { 
-      document.getElementById("searchOverlay").style.display = "none"; 
-      document.getElementById("searchInput").value = ""; 
-      document.getElementById("searchResults").innerHTML = ""; 
+    function clearCurrentPhoto() {
+      currentBlob = null; currentPhotoUrl = null;
+      document.getElementById("previewContainer").style.display = "none";
     }
 
-    function toggleFolder() { const l = document.getElementById("folderList"); l.style.display = l.style.display === "none" ? "block" : "none"; }
-    function openMenu() { document.getElementById("menuModal").style.display = "block"; document.getElementById("modalBackdrop").style.display = "block"; }
-    function closeMenu() { document.getElementById("menuModal").style.display = "none"; document.getElementById("modalBackdrop").style.display = "none"; }
-    function zoomImage(s) { document.getElementById("zoomImg").src = s; document.getElementById("zoomOverlay").style.display = "flex"; }
-    function closeZoom() { document.getElementById("zoomOverlay").style.display = "none"; }
-    function showMessage(m) { const el = document.getElementById("message"); el.textContent = m; setTimeout(()=>el.textContent="", 2000); }
-    function downloadBackup() { const blob = new Blob([JSON.stringify({estoque})], {type:"application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "estoque.json"; a.click(); }
-    
-    function restoreBackup(e) { 
-      const fr = new FileReader(); 
-      fr.onload = (ev) => { 
-        const data = JSON.parse(ev.target.result); 
-        const tx = db.transaction(["itens"], "readwrite"); 
-        const store = tx.objectStore("itens");
-        store.clear().onsuccess = () => { 
-          data.estoque.forEach(i => { delete i.id; store.add(i); }); 
-        }; 
-        tx.oncomplete = () => {
-          const readTx = db.transaction(["itens"], "readonly").objectStore("itens");
-          readTx.getAll().onsuccess = (evEstoque) => {
-            estoque = evEstoque.target.result;
-            saveToCloud().then(() => {
-              alert("Backup carregado e sincronizado com a nuvem!");
-              location.reload();
-            });
+    // ==========================================
+    // UPLOAD IMGBB (fallback para câmera da foto do produto)
+    // ==========================================
+    async function backgroundUpload(itemId, blob) {
+      const key = document.getElementById("f_key").value; if (!key) return;
+      const form = new FormData(); form.append("image", blob);
+      try {
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method:"POST", body:form });
+        const json = await res.json();
+        if (json.success) {
+          const tx = db.transaction(["itens"],"readwrite");
+          tx.objectStore("itens").get(itemId).onsuccess = e => {
+            const item = e.target.result;
+            if (item) { item.foto = json.data.url; tx.objectStore("itens").put(item); }
           };
-        }; 
-      }; 
-      fr.readAsText(e.target.files[0]); 
+          tx.oncomplete = () => { refreshData(); setTimeout(saveToCloud, 500); };
+        }
+      } catch(e) { console.error("Upload error"); }
     }
+
+    // ==========================================
+    // NUVEM / BACKUP
+    // ==========================================
+    async function saveToCloud() {
+      const url = document.getElementById("f_cloud").value.trim();
+      if (!url || !url.endsWith(".json")) return;
+      try { await fetch(url, { method:"PUT", body:JSON.stringify(estoque) }); showSyncCheck(); } catch(e) {}
+    }
+    async function clearCloudData() {
+      const url = document.getElementById("f_cloud").value.trim();
+      if (!url) return alert("Insira a URL do Firebase.");
+      if (!confirm("CUIDADO! Apagará TODOS os dados do servidor.")) return;
+      try { await fetch(url, { method:"PUT", body:JSON.stringify([]) }); alert("Nuvem limpa!"); showSyncCheck(); } catch(e) { alert("Erro."); }
+    }
+    async function loadFromCloud() {
+      const url = document.getElementById("f_cloud").value.trim(); if (!url) return alert("URL Firebase necessária.");
+      try {
+        const data = await (await fetch(url)).json();
+        if (data) {
+          const tx = db.transaction(["itens"],"readwrite");
+          tx.objectStore("itens").clear().onsuccess = () => { data.forEach(i => { if(i){delete i.id; tx.objectStore("itens").add(i);} }); };
+          tx.oncomplete = () => location.reload();
+        }
+      } catch(e) { alert("Erro ao baixar."); }
+    }
+    function showSyncCheck() {
+      const el = document.getElementById("syncStatus"); el.style.display = "block";
+      setTimeout(() => el.style.display = "none", 1000);
+    }
+    function calculateDataSize() {
+      const bytes = new Blob([JSON.stringify(estoque)]).size;
+      document.getElementById("dataSize").textContent = `Espaço: ${(bytes/1024).toFixed(2)} KB`;
+    }
+    function downloadBackup() {
+      const blob = new Blob([JSON.stringify({estoque})], {type:"application/json"});
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "estoque.json"; a.click();
+    }
+    function restoreBackup(e) {
+      const fr = new FileReader();
+      fr.onload = ev => {
+        const data = JSON.parse(ev.target.result);
+        const tx = db.transaction(["itens"],"readwrite");
+        tx.objectStore("itens").clear().onsuccess = () => { data.estoque.forEach(i => { delete i.id; tx.objectStore("itens").add(i); }); };
+        tx.oncomplete = () => {
+          db.transaction(["itens"],"readonly").objectStore("itens").getAll().onsuccess = ev2 => {
+            estoque = ev2.target.result;
+            saveToCloud().then(() => { alert("Backup carregado!"); location.reload(); });
+          };
+        };
+      };
+      fr.readAsText(e.target.files[0]);
+    }
+
+    // ==========================================
+    // UI HELPERS
+    // ==========================================
+    function openSearch()  { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("searchInput").focus(); }
+    function closeSearch() { document.getElementById("searchOverlay").style.display = "none"; document.getElementById("searchInput").value = ""; document.getElementById("searchResults").innerHTML = ""; }
+    function toggleFolder() { const l = document.getElementById("folderList"); l.style.display = l.style.display==="none" ? "block":"none"; }
+    function openMenu()  { document.getElementById("menuModal").style.display = "block"; document.getElementById("modalBackdrop").style.display = "block"; }
+    function closeMenu() { document.getElementById("menuModal").style.display = "none";  document.getElementById("modalBackdrop").style.display = "none"; }
+    function zoomImage(s) { document.getElementById("zoomImg").src = s; document.getElementById("zoomOverlay").style.display = "flex"; }
+    function closeZoom()  { document.getElementById("zoomOverlay").style.display = "none"; }
+    function showMessage(m) { const el = document.getElementById("message"); el.textContent = m; setTimeout(()=>el.textContent="", 3000); }
   </script>
 </body>
-</html
+</html>
