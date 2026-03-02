@@ -7,46 +7,142 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #0f0f0f; color: #eee; margin: 0; padding: 12px; }
-    h1 { text-align: center; margin-bottom: 5px; }
-    #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-    #dataSize { text-align: center; color: #888; font-size: 11px; margin-bottom: 15px; }
+    h1 { text-align: center; margin-bottom: 5px; animation: fadeDown 0.6s ease both; }
+    #globalCounter { text-align: center; color: #2196f3; font-weight: bold; margin-bottom: 5px; font-size: 14px; animation: fadeDown 0.6s ease 0.1s both; }
+    #dataSize { text-align: center; color: #888; font-size: 11px; margin-bottom: 15px; animation: fadeDown 0.6s ease 0.2s both; }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes popIn {
+      0%   { opacity: 0; transform: scale(0.85); }
+      70%  { transform: scale(1.04); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes ripple {
+      0%   { transform: scale(0); opacity: 0.5; }
+      100% { transform: scale(4); opacity: 0; }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(168,85,247,0.4); }
+      50%       { box-shadow: 0 0 0 6px rgba(168,85,247,0); }
+    }
+
+    /* Card de entrada */
+    .card { background: #1b1b1b; padding: 12px; border-radius: 10px; margin-top: 10px; animation: fadeUp 0.5s ease 0.15s both; }
+
+    /* Inputs com transição suave */
+    input { background: #222; color: #fff; transition: border-color 0.25s, box-shadow 0.25s, background 0.25s; }
+    input:focus { outline: none; border: 1px solid #a855f7 !important; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); background: #2a2020 !important; }
+
+    input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: none; font-size: 16px; cursor: pointer; }
+
+    /* Botões com ripple e press */
+    button { position: relative; overflow: hidden; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s; }
+    button:active { transform: scale(0.96); filter: brightness(0.9); }
+    button::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit;
+      background: radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 70%);
+      transform: scale(0); opacity: 0; transition: transform 0.4s, opacity 0.4s;
+      pointer-events: none;
+    }
+    button:active::after { transform: scale(4); opacity: 1; transition: 0s; }
+
+    #addButton { background: #4caf50; color: #000; font-weight: bold; transition: background 0.2s, transform 0.12s, box-shadow 0.2s; }
+    #addButton:hover { box-shadow: 0 4px 16px rgba(76,175,80,0.4); }
+    #searchButton { background: #4caf50; color: #000; font-weight: bold; animation: fadeUp 0.5s ease 0.25s both; }
+    #searchButton:hover { box-shadow: 0 4px 16px rgba(76,175,80,0.35); }
+    #uploadStatus { display: none !important; }
+
+    /* Botões de ação */
+    #btnScan { background: linear-gradient(135deg, #ff6b35, #f7931e); color: #000; font-weight: bold; }
+    #btnIA   { background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; font-weight: bold; animation: pulse-border 2.5s ease infinite; }
+    #btnIA:hover { box-shadow: 0 4px 20px rgba(168,85,247,0.5); }
+    #btnCam  { background: #2196f3; color: white; }
+
+    .scan-hint { font-size: 11px; color: #4caf50; text-align: center; margin-top: 4px; display: none; animation: fadeIn 0.3s ease; }
+
+    /* Câmera */
+    #camArea { display: none; margin: 10px auto; width: 100%; max-width: 300px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; position: relative; background: #000; animation: popIn 0.35s ease; }
+    #video { width: 100%; height: 100%; object-fit: cover; }
+    #shutter { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 55px; height: 55px; background: white; border: 4px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 10; transition: transform 0.15s, box-shadow 0.15s; }
+    #shutter:active { transform: translateX(-50%) scale(0.88); box-shadow: 0 0 0 8px rgba(255,255,255,0.2); }
+
+    /* Preview da foto */
+    #previewContainer { position: relative; width: 100%; max-width: 300px; margin: 10px auto; display: none; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; animation: popIn 0.4s ease; }
+    #photoPreview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
+    #removePhotoBtn { position: absolute; top: -10px; right: -10px; background: #f44336; color: white; border: 2px solid #1b1b1b; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 20; transition: transform 0.15s; }
+    #removePhotoBtn:hover { transform: scale(1.15) rotate(15deg); }
+
+    /* Item cards com animação de entrada escalonada */
+    .item-card {
+      background: #3a3a3a; padding: 12px; border-radius: 8px; margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-left: 4px solid #2196f3;
+      animation: slideInLeft 0.3s ease both;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .item-card:hover { transform: translateX(3px); background: #424242; box-shadow: -4px 0 12px rgba(33,150,243,0.2); }
+    .item-info { flex: 1; display: flex; align-items: center; gap: 10px; }
+    .item-img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; background: #222; flex-shrink: 0; cursor: pointer; transition: transform 0.2s; }
+    .item-img:hover { transform: scale(1.1); }
+    .item-text { display: flex; flex-direction: column; gap: 2px; }
+    mark { background: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
+    .action-buttons { display: flex; gap: 8px; }
+    .action-buttons button { width: 35px; height: 35px; padding: 0; transition: transform 0.15s, filter 0.15s; }
+    .action-buttons button:hover { transform: scale(1.15); filter: brightness(1.2); }
+
+    /* Search overlay com slide */
+    #searchOverlay, #zoomOverlay { position: fixed; inset: 0; display: none; z-index: 2000; padding: 12px; flex-direction: column; background: #000; }
+    #searchOverlay.open { animation: fadeIn 0.25s ease; }
+    #zoomOverlay { background: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
+    #zoomImg { max-width: 95%; max-height: 80vh; border-radius: 8px; animation: popIn 0.3s ease; }
+
+    /* Menu modal */
+    #menuModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1b1b1b; padding: 20px; border-radius: 12px; display: none; z-index: 1200; min-width: 280px; box-shadow: 0 0 15px #000; overflow-y: auto; max-height: 90vh; }
+    #menuModal.open { animation: popIn 0.3s ease; }
+    #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; animation: fadeIn 0.2s ease; }
+
+    input.filled-by-scan { border: 1px solid #4caf50 !important; background: #1a2e1a !important; }
+    input.filled-by-ia   { border: 1px solid #a855f7 !important; background: #1e1a2e !important; animation: pulse-border 2s ease 3; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: #a855f7; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     #menuButton {
       background: transparent; color: #fff;
       border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px;
       font-weight: bold; cursor: pointer; display: flex; align-items: center;
       justify-content: center; margin: 0; padding: 0;
+      transition: transform 0.2s;
     }
-    #syncStatus { position: fixed; top: 10px; right: 10px; font-size: 24px; display: none; z-index: 3000; }
-
-    .card { background: #1b1b1b; padding: 12px; border-radius: 10px; margin-top: 10px; }
-    input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: none; font-size: 16px; cursor: pointer; }
-    input { background: #222; color: #fff; }
-    #addButton { background: #4caf50; color: #000; font-weight: bold; }
-    #searchButton { background: #4caf50; color: #000; font-weight: bold; }
-    #uploadStatus { display: none !important; }
-
-    /* Botões de ação */
-    #btnScan { background: linear-gradient(135deg, #ff6b35, #f7931e); color: #000; font-weight: bold; }
-    #btnIA   { background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; font-weight: bold; }
-    #btnCam  { background: #2196f3; color: white; }
-
-    .scan-hint { font-size: 11px; color: #4caf50; text-align: center; margin-top: 4px; display: none; }
-
-    /* Câmera foto */
-    #camArea { display: none; margin: 10px auto; width: 100%; max-width: 300px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; position: relative; background: #000; }
-    #video { width: 100%; height: 100%; object-fit: cover; }
-    #shutter { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 55px; height: 55px; background: white; border: 4px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 10; }
-    #previewContainer { position: relative; width: 100%; max-width: 300px; margin: 10px auto; display: none; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; }
-    #photoPreview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
-    #removePhotoBtn { position: absolute; top: -10px; right: -10px; background: #f44336; color: white; border: 2px solid #1b1b1b; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 20; }
+    #menuButton:hover { transform: rotate(30deg); }
+    #syncStatus { position: fixed; top: 10px; right: 10px; font-size: 24px; display: none; z-index: 3000; animation: popIn 0.3s ease; }
 
     /* ===== OVERLAY IA ===== */
     #iaOverlay {
       position: fixed; inset: 0; background: #000; z-index: 4000;
       display: none; flex-direction: column; align-items: center; justify-content: flex-start;
     }
-    #iaOverlay.active { display: flex; }
+    #iaOverlay.active { display: flex; animation: fadeIn 0.25s ease; }
     #iaHeader { width: 100%; padding: 15px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.85); z-index: 10; }
     #iaHeader h3 { margin: 0; color: #a855f7; font-size: 16px; }
     #closeIABtn { background: #f44336; color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; width: auto; margin: 0; }
@@ -58,6 +154,7 @@
       border: 3px dashed #a855f7; border-radius: 12px; z-index: 20; pointer-events: none;
       box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
       display: flex; align-items: center; justify-content: center;
+      animation: pulse-border 2s ease infinite;
     }
     #iaGuide span { color: rgba(168,85,247,0.7); font-size: 12px; text-align: center; padding: 10px; }
     #iaShutter {
@@ -66,18 +163,16 @@
       background: linear-gradient(135deg, #7c3aed, #a855f7);
       border: 4px solid rgba(255,255,255,0.3);
       z-index: 30; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      font-size: 26px;
+      font-size: 26px; transition: transform 0.15s, box-shadow 0.15s;
     }
-    #iaStatus { width: 100%; padding: 12px 15px; text-align: center; background: rgba(0,0,0,0.9); color: #aaa; font-size: 13px; z-index: 10; min-height: 48px; }
+    #iaShutter:active { transform: translateX(-50%) scale(0.88); box-shadow: 0 0 0 12px rgba(168,85,247,0.2); }
+    #iaStatus { width: 100%; padding: 12px 15px; text-align: center; background: rgba(0,0,0,0.9); color: #aaa; font-size: 13px; z-index: 10; min-height: 48px; transition: color 0.3s; }
     #iaStatus.thinking { color: #a855f7; }
     #iaStatus.success { color: #4caf50; font-weight: bold; }
     #iaStatus.error { color: #f44336; }
 
     /* Painel resultado IA */
-    #iaResult {
-      display: none; width: 100%; background: #1b1b1b; padding: 15px; z-index: 10;
-      max-height: 60vh; overflow-y: auto;
-    }
+    #iaResult { display: none; width: 100%; background: #1b1b1b; padding: 15px; z-index: 10; max-height: 60vh; overflow-y: auto; animation: fadeUp 0.3s ease; }
     #iaResult h4 { margin: 0 0 8px 0; color: #a855f7; font-size: 15px; }
     #ia_origem { font-size: 11px; color: #a855f7; margin-bottom: 10px; text-align: center; }
     .ia-field { margin-bottom: 10px; }
@@ -86,33 +181,7 @@
     #iaConfirmBtn { background: linear-gradient(135deg,#7c3aed,#a855f7); color: #fff; font-weight: bold; margin-top: 10px; }
     #iaCancelBtn { background: #555; color: #fff; margin-top: 6px; }
     #iaRetryBtn { background: #333; color: #a855f7; border: 1px solid #a855f7; margin-top: 6px; font-size: 13px; }
-
-    /* Preview da foto da IA */
-    #iaPhotoThumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #a855f7; float: right; margin-left: 10px; cursor: pointer; display: none; }
-
-    /* Item cards */
-    .item-card { background: #3a3a3a; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2196f3; }
-    .item-info { flex: 1; display: flex; align-items: center; gap: 10px; }
-    .item-img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; background: #222; flex-shrink: 0; cursor: pointer; }
-    .item-text { display: flex; flex-direction: column; gap: 2px; }
-    mark { background: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
-    .action-buttons { display: flex; gap: 8px; }
-    .action-buttons button { width: 35px; height: 35px; padding: 0; }
-
-    #searchOverlay, #zoomOverlay { position: fixed; inset: 0; display: none; z-index: 2000; padding: 12px; flex-direction: column; background: #000; }
-    #zoomOverlay { background: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
-    #zoomImg { max-width: 95%; max-height: 80vh; border-radius: 8px; }
-    #menuModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1b1b1b; padding: 20px; border-radius: 12px; display: none; z-index: 1200; min-width: 280px; box-shadow: 0 0 15px #000; overflow-y: auto; max-height: 90vh; }
-    #modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1150; }
-
-    input.filled-by-scan { border: 1px solid #4caf50 !important; background: #1a2e1a !important; }
-    input.filled-by-ia { border: 1px solid #a855f7 !important; background: #1e1a2e !important; }
-
-    /* Loading spinner inline */
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: #a855f7; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Divisor entre botões */
+    #iaPhotoThumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #a855f7; float: right; margin-left: 10px; cursor: pointer; display: none; animation: popIn 0.35s ease; }
     .btn-divider { text-align: center; color: #555; font-size: 11px; margin: 8px 0 2px; }
   </style>
 </head>
@@ -681,17 +750,12 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
 
     function createItemCard(item, searchTerms = []) {
       const div = document.createElement("div"); div.className = "item-card";
-      // Limpa HTML do texto puro ANTES de qualquer highlight
       const nomeClean = stripHtml(item.nome);
       const pratClean = stripHtml(item.prateleira);
       let n = escapeHtml(nomeClean);
       let p = escapeHtml(pratClean);
       if (searchTerms.length > 0) {
-        // Une todos os termos num único regex para evitar que tags <mark>
-        // de uma palavra quebrem o highlight da próxima
-        const termsEscaped = searchTerms
-          .filter(t => t.length > 0)
-          .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        const termsEscaped = searchTerms.filter(t => t.length > 0).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
         if (termsEscaped.length > 0) {
           const r = new RegExp("(" + termsEscaped.join("|") + ")", "gi");
           n = n.replace(r, "<mark>$1</mark>");
@@ -717,7 +781,11 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
 
     function renderFolderList() {
       const list = document.getElementById("folderList"); list.innerHTML = "";
-      estoque.slice(-50).reverse().forEach(i => list.appendChild(createItemCard(i)));
+      estoque.slice(-50).reverse().forEach((i, idx) => {
+        const card = createItemCard(i);
+        card.style.animationDelay = `${idx * 0.04}s`;
+        list.appendChild(card);
+      });
     }
 
     function renderSearchResults() {
@@ -725,8 +793,12 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       const area = document.getElementById("searchResults");
       area.innerHTML = ""; if (!inputVal) return;
       const terms = inputVal.split(/\s+/);
-      estoque.filter(i => terms.every(t => (i.nome + " " + i.prateleira).toLowerCase().includes(t)))
-             .reverse().slice(0, 40).forEach(i => area.appendChild(createItemCard(i, terms)));
+      const results = estoque.filter(i => terms.every(t => (i.nome + " " + i.prateleira).toLowerCase().includes(t))).reverse().slice(0, 40);
+      results.forEach((i, idx) => {
+        const card = createItemCard(i, terms);
+        card.style.animationDelay = `${idx * 0.04}s`;
+        area.appendChild(card);
+      });
     }
 
     function clearCurrentPhoto() {
@@ -810,14 +882,44 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
     // ==========================================
     // UI HELPERS
     // ==========================================
-    function openSearch()  { document.getElementById("searchOverlay").style.display = "flex"; document.getElementById("searchInput").focus(); }
-    function closeSearch() { document.getElementById("searchOverlay").style.display = "none"; document.getElementById("searchInput").value = ""; document.getElementById("searchResults").innerHTML = ""; }
-    function toggleFolder() { const l = document.getElementById("folderList"); l.style.display = l.style.display==="none" ? "block":"none"; }
-    function openMenu()  { document.getElementById("menuModal").style.display = "block"; document.getElementById("modalBackdrop").style.display = "block"; }
-    function closeMenu() { document.getElementById("menuModal").style.display = "none";  document.getElementById("modalBackdrop").style.display = "none"; }
-    function zoomImage(s) { document.getElementById("zoomImg").src = s; document.getElementById("zoomOverlay").style.display = "flex"; }
+    function openSearch() {
+      const o = document.getElementById("searchOverlay");
+      o.style.display = "flex"; o.classList.remove("open");
+      requestAnimationFrame(() => o.classList.add("open"));
+      document.getElementById("searchInput").focus();
+    }
+    function closeSearch() {
+      document.getElementById("searchOverlay").style.display = "none";
+      document.getElementById("searchInput").value = "";
+      document.getElementById("searchResults").innerHTML = "";
+    }
+    function toggleFolder() {
+      const l = document.getElementById("folderList");
+      l.style.display = l.style.display === "none" ? "block" : "none";
+      if (l.style.display === "block") l.style.animation = "fadeUp 0.3s ease";
+    }
+    function openMenu() {
+      const m = document.getElementById("menuModal");
+      m.style.display = "block"; m.classList.remove("open");
+      requestAnimationFrame(() => m.classList.add("open"));
+      document.getElementById("modalBackdrop").style.display = "block";
+    }
+    function closeMenu() {
+      document.getElementById("menuModal").style.display = "none";
+      document.getElementById("modalBackdrop").style.display = "none";
+    }
+    function zoomImage(s) {
+      document.getElementById("zoomImg").src = s;
+      document.getElementById("zoomOverlay").style.display = "flex";
+    }
     function closeZoom()  { document.getElementById("zoomOverlay").style.display = "none"; }
-    function showMessage(m) { const el = document.getElementById("message"); el.textContent = m; setTimeout(()=>el.textContent="", 3000); }
+    function showMessage(m) {
+      const el = document.getElementById("message");
+      el.textContent = m;
+      el.style.animation = "none";
+      requestAnimationFrame(() => el.style.animation = "popIn 0.3s ease");
+      setTimeout(() => el.textContent = "", 3000);
+    }
   </script>
 </body>
 </html>
