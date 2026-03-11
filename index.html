@@ -183,17 +183,58 @@
     #iaRetryBtn { background: #333; color: #a855f7; border: 1px solid #a855f7; margin-top: 6px; font-size: 13px; }
     #iaPhotoThumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #a855f7; float: right; margin-left: 10px; cursor: pointer; display: none; animation: popIn 0.35s ease; }
     .btn-divider { text-align: center; color: #555; font-size: 11px; margin: 8px 0 2px; }
+
+    /* ===== VOICE PRICE INDICATOR ===== */
+    #voicePriceBar {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(10,10,10,0.97); z-index: 5000;
+      padding: 16px 20px 20px; border-top: 2px solid #4caf50;
+      flex-direction: column; align-items: center; gap: 10px;
+      animation: fadeUp 0.3s ease;
+    }
+    #voicePriceBar.active { display: flex; }
+    #voicePriceBar .vp-title { color: #aaa; font-size: 13px; text-align: center; }
+    #voicePriceBar .vp-price { color: #4caf50; font-size: 42px; font-weight: bold; letter-spacing: 2px; min-height: 50px; }
+    #voicePriceBar .vp-status { color: #888; font-size: 12px; }
+    #voiceMicIcon {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: #4caf50; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; animation: micPulse 1s ease infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+      50%       { box-shadow: 0 0 0 12px rgba(76,175,80,0); }
+    }
+    #voiceCancelBtn {
+      background: #333; color: #aaa; border: 1px solid #555;
+      border-radius: 8px; padding: 8px 20px; font-size: 13px;
+      cursor: pointer; width: auto; margin: 0;
+    }
   </style>
 </head>
 <body>
 
   <div id="syncStatus">✅</div>
+
+  <!-- BANNER PERMISSÃO MICROFONE -->
+  <div id="micPermBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:6000; background:#1a1a2e; border-top:2px solid #4caf50; padding:16px 20px; flex-direction:column; align-items:center; gap:10px; animation: fadeUp 0.3s ease;">
+    <div style="font-size:15px; color:#fff; text-align:center;">🎤 Permitir microfone para falar o preço</div>
+    <div style="font-size:12px; color:#aaa; text-align:center;">Necessário para cadastrar itens por voz automaticamente</div>
+    <button onclick="requestMicPermission()" style="background:#4caf50; color:#000; font-weight:bold; width:auto; padding:12px 30px; border-radius:10px; font-size:15px; margin:0;">Permitir Microfone</button>
+    <button onclick="document.getElementById('micPermBanner').style.display='none'" style="background:transparent; color:#666; font-size:12px; width:auto; padding:4px 10px; margin:0;">Agora não</button>
+  </div>
   <div style="position:fixed; top:10px; left:8px; z-index:900; display:flex; flex-direction:column; align-items:center; gap:4px;">
     <button id="menuButton" onclick="openMenu()">⚙️</button>
     <div id="iaToggleWrap" style="display:flex; align-items:center; gap:5px;">
       <label style="font-size:10px; color:#aaa; margin:0;">IA</label>
       <div onclick="toggleIA()" style="cursor:pointer; width:40px; height:22px; border-radius:11px; position:relative; transition:background 0.3s;" id="iaToggleTrack">
         <div id="iaToggleThumb" style="position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s;"></div>
+      </div>
+    </div>
+    <div id="voiceToggleWrap" style="display:flex; align-items:center; gap:5px;">
+      <label style="font-size:10px; color:#aaa; margin:0;">🎤</label>
+      <div onclick="toggleVoiceAuto()" style="cursor:pointer; width:40px; height:22px; border-radius:11px; position:relative; transition:background 0.3s;" id="voiceToggleTrack">
+        <div id="voiceToggleThumb" style="position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s;"></div>
       </div>
     </div>
   </div>
@@ -273,6 +314,15 @@
   <!-- ZOOM FOTO -->
   <div id="zoomOverlay" onclick="closeZoom()"><img id="zoomImg" src="" /></div>
 
+  <!-- ===== VOICE PRICE BAR ===== -->
+  <div id="voicePriceBar">
+    <div id="voiceMicIcon">🎤</div>
+    <div class="vp-title">Fale o preço do produto</div>
+    <div class="vp-price" id="voicePriceDisplay">—</div>
+    <div class="vp-status" id="voicePriceStatus">Aguardando número...</div>
+    <button id="voiceCancelBtn" onclick="cancelVoicePrice()">✕ Cancelar</button>
+  </div>
+
   <!-- ===== OVERLAY IA ===== -->
   <div id="iaOverlay">
     <div id="iaHeader">
@@ -321,7 +371,44 @@
         refreshData();
       };
       updateIAToggleUI();
+      updateVoiceToggleUI();
+
+      // Verifica permissão do microfone ao carregar
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: "microphone" }).then(result => {
+          if (result.state === "granted") {
+            localStorage.setItem("mic_granted", "1");
+          } else if (result.state === "denied") {
+            localStorage.removeItem("mic_granted");
+          }
+          if (result.state !== "granted" && !localStorage.getItem("mic_granted")) {
+            document.getElementById("micPermBanner").style.display = "flex";
+          }
+        }).catch(() => {
+          if (!localStorage.getItem("mic_granted")) {
+            document.getElementById("micPermBanner").style.display = "flex";
+          }
+        });
+      } else {
+        if (!localStorage.getItem("mic_granted")) {
+          document.getElementById("micPermBanner").style.display = "flex";
+        }
+      }
     });
+
+    function requestMicPermission() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(t => t.stop());
+          localStorage.setItem("mic_granted", "1");
+          document.getElementById("micPermBanner").style.display = "none";
+          showMessage("🎤 Microfone liberado!");
+        })
+        .catch(err => {
+          document.getElementById("micPermBanner").style.display = "none";
+          showMessage("Microfone negado — ative nas configuracoes do Chrome.");
+        });
+    }
 
     function stripHtml(str) {
       if (!str) return str;
@@ -537,63 +624,65 @@
     }
 
     async function analyzeWithGemini(base64) {
-      const key = localStorage.getItem("groq_api_key");
+      const rawKey = localStorage.getItem("groq_api_key") || "";
+      // Remove TUDO que não seja ASCII imprimível (32–126) — elimina caracteres invisíveis, acentos, etc.
+      const key = rawKey.replace(/[^\x20-\x7E]/g, "").trim();
       if (!key) {
-        document.getElementById("iaStatus").textContent = "❌ Configure a chave API do Groq nas ⚙️ Configurações";
+        document.getElementById("iaStatus").textContent = "Configure a chave API do Groq nas Configuracoes";
         document.getElementById("iaStatus").className = "error";
         document.getElementById("iaResult").style.display = "block";
-        document.getElementById("ia_origem").textContent = "⚙️ Acesse console.groq.com → API Keys → cole nas configurações";
+        document.getElementById("ia_origem").textContent = "Acesse console.groq.com > API Keys > cole nas configuracoes";
         return;
       }
 
-      const prompt = `Analise esta imagem de embalagem de peça automotiva e retorne APENAS uma linha com:
-
-NOME DA PEÇA + APLICAÇÃO (veículos compatíveis se houver)
-
-Regras:
-- Inclua: nome da peça, referência/código, veículos compatíveis
-- Exclua: nome da marca/fabricante, CNPJ, endereço, site, telefone, textos de propaganda, certificações, instruções
-- Se houver código/referência da peça, coloque entre parênteses no final
-- Se houver veículos compatíveis, coloque após o nome da peça
-
-Exemplos de saída correta:
-Interruptor de Óleo F250/F350/F1200/F1400 após 98 (7296)
-Bucha do Estabilizador Gol/Parati/Saveiro 95-05 (NK-1234)
-Filtro de Óleo Civic/City 2006-2012 (PH4967)
-
-Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
+      const prompt = "Analise esta imagem de embalagem de peca automotiva e retorne APENAS uma linha com:\n\n"
+        + "NOME DA PECA + APLICACAO (veiculos compativeis se houver)\n\n"
+        + "Regras:\n"
+        + "- Inclua: nome da peca, referencia/codigo, veiculos compativeis\n"
+        + "- Exclua: nome da marca/fabricante, CNPJ, endereco, site, telefone, textos de propaganda, certificacoes, instrucoes\n"
+        + "- Se houver codigo/referencia da peca, coloque entre parenteses no final\n"
+        + "- Se houver veiculos compativeis, coloque apos o nome da peca\n\n"
+        + "Exemplos de saida correta:\n"
+        + "Interruptor de Oleo F250/F350/F1200/F1400 apos 98 (7296)\n"
+        + "Bucha do Estabilizador Gol/Parati/Saveiro 95-05 (NK-1234)\n"
+        + "Filtro de Oleo Civic/City 2006-2012 (PH4967)\n\n"
+        + "Responda APENAS com essa linha, sem explicacoes, sem nome de marca.";
 
       try {
         document.getElementById("iaStatus").innerHTML = '<span class="spinner"></span> IA analisando a embalagem...';
 
-        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + key
-          },
-          body: JSON.stringify({
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
-            max_tokens: 512,
-            temperature: 0.1,
-            messages: [{
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: "data:image/jpeg;base64," + base64 } }
-              ]
-            }]
-          })
+        const payload = JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          max_tokens: 512,
+          temperature: 0.1,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: "data:image/jpeg;base64," + base64 } }
+            ]
+          }]
+        });
+
+        // Usa XMLHttpRequest para evitar o bug de encoding de headers no Safari/iOS
+        const resp = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "https://api.groq.com/openai/v1/chat/completions");
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.setRequestHeader("Authorization", "Bearer " + key);
+          xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => JSON.parse(xhr.responseText) });
+          xhr.onerror = () => reject(new Error("Erro de rede"));
+          xhr.send(payload);
         });
 
         if (!resp.ok) {
-          const err = await resp.json();
+          const err = resp.json();
           throw new Error(err.error?.message || "Erro " + resp.status);
         }
 
-        const data = await resp.json();
+        const data = resp.json();
         const text = data.choices?.[0]?.message?.content || "";
-        if (!text.trim()) throw new Error("IA não retornou texto");
+        if (!text.trim()) throw new Error("IA nao retornou texto");
         showIAResult(text.trim());
 
       } catch(e) {
@@ -632,14 +721,13 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       document.getElementById("f_nome").value = texto;
       document.getElementById("f_nome").classList.add("filled-by-ia");
       document.getElementById("scanHint").style.display = "block";
-      document.getElementById("scanHint").textContent = "🤖 Texto da IA aplicado — edite o nome e preencha a prateleira";
+      document.getElementById("scanHint").textContent = "🤖 Texto da IA aplicado — fale o preço agora";
+
+      // Inicia reconhecimento de voz AGORA — ainda dentro do evento de clique
+      // (antes de qualquer async/setTimeout, senão o navegador bloqueia)
+      if (voiceAutoEnabled) startVoicePrice();
 
       closeIA();
-      setTimeout(() => {
-        document.getElementById("f_nome").focus();
-        document.getElementById("f_nome").scrollIntoView({ behavior:"smooth", block:"center" });
-      }, 300);
-      showMessage("🤖 Texto aplicado! Edite o nome e preencha a prateleira.");
     }
 
     async function retryIA() {
@@ -920,6 +1008,190 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       requestAnimationFrame(() => el.style.animation = "popIn 0.3s ease");
       setTimeout(() => el.textContent = "", 3000);
     }
+    // ==========================================
+    // RECONHECIMENTO DE VOZ — PREÇO AUTOMÁTICO
+    // ==========================================
+    let voiceRecognition = null;
+    let voicePriceActive = false;
+    let voiceAutoSaveTimer = null;
+
+    function startVoicePrice() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showMessage("Navegador nao suporta reconhecimento de voz."); return; }
+      stopIACamera();
+      if (simpleStream) { simpleStream.getTracks().forEach(t => t.stop()); simpleStream = null; }
+      voicePriceActive = true;
+      document.getElementById("voicePriceBar").classList.add("active");
+      document.getElementById("voicePriceDisplay").textContent = "—";
+      document.getElementById("voicePriceStatus").textContent = "Pode falar o preco...";
+      setTimeout(() => _criarReconhecimento(SR), 300);
+    }
+
+    function _criarReconhecimento(SR) {
+      if (!voicePriceActive) return;
+      voiceRecognition = new SR();
+      voiceRecognition.lang = "pt-BR";
+      voiceRecognition.continuous = true;
+      voiceRecognition.interimResults = true;
+      voiceRecognition.maxAlternatives = 3;
+      voiceRecognition.onresult = onVoiceResult;
+      voiceRecognition.onerror = (e) => {
+        // no-speech e audio-capture são normais — ignora silenciosamente
+        if (e.error === "no-speech" || e.error === "audio-capture") return;
+        document.getElementById("voicePriceStatus").textContent = "Erro: " + e.error;
+      };
+      voiceRecognition.onend = () => {
+        if (!voicePriceActive) return;
+        // Reinicia sem alterar nada na tela — totalmente transparente pro usuário
+        try {
+          voiceRecognition.start();
+        } catch(e) {
+          // Se não conseguiu reiniciar a mesma instância, cria uma nova
+          setTimeout(() => _criarReconhecimento(SR), 150);
+        }
+      };
+      try {
+        voiceRecognition.start();
+      } catch(e) {
+        document.getElementById("voicePriceStatus").textContent = "Nao foi possivel iniciar: " + e.message;
+        voicePriceActive = false;
+      }
+    }
+
+    function onVoiceResult(event) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        const isFinal = event.results[i].isFinal;
+
+        // Tenta detectar prateleira (letra A-Z seguida de número, ex: A1, C12, B05)
+        const shelf = extractShelf(transcript);
+        if (shelf !== null) {
+          document.getElementById("f_pos").value = shelf;
+          document.getElementById("f_pos").classList.add("filled-by-ia");
+          document.getElementById("voicePriceStatus").textContent = 'Prateleira: ' + shelf;
+          // Não cadastra automaticamente ao detectar prateleira — continua aguardando preço
+          continue;
+        }
+
+        // Tenta detectar preço
+        const price = extractPrice(transcript);
+        if (price !== null) {
+          const formatted = formatPrice(price);
+          if (voiceAutoSaveTimer) clearTimeout(voiceAutoSaveTimer);
+          document.getElementById("voicePriceDisplay").textContent = "R$ " + formatted;
+          document.getElementById("f_preco").value = formatted;
+          document.getElementById("f_preco").classList.add("filled-by-ia");
+          if (isFinal) {
+            document.getElementById("voicePriceStatus").textContent = "Salvando em 0,5s...";
+            voiceAutoSaveTimer = setTimeout(() => { stopVoicePrice(); addItem(); }, 500);
+          }
+        } else if (!isFinal && transcript.trim()) {
+          document.getElementById("voicePriceStatus").textContent = '"' + transcript + '"...';
+        }
+      }
+    }
+
+    // Detecta padrão de prateleira: letra(s) + número (ex: A1, C12, AB3, B05)
+    // Suporta fala como "A 1", "C 12", "be 5" (fonético) etc.
+    function extractShelf(text) {
+      const t = text.trim().toUpperCase()
+        // Fonético: "BE" → B, "CE" → C, "DE" → D, "EFE" → F, etc.
+        .replace(/\bBE\b/g, "B").replace(/\bCE\b/g, "C").replace(/\bDE\b/g, "D")
+        .replace(/\bEFE\b/g, "F").replace(/\bGE\b/g, "G").replace(/\bHA\b/g, "H")
+        .replace(/\bJOTA\b/g, "J").replace(/\bKA\b/g, "K").replace(/\bELE\b/g, "L")
+        .replace(/\bEME\b/g, "M").replace(/\bENE\b/g, "N").replace(/\bPE\b/g, "P")
+        .replace(/\bQUE\b/g, "Q").replace(/\bERRE\b/g, "R").replace(/\bESSE\b/g, "S")
+        .replace(/\bTE\b/g, "T").replace(/\bVE\b/g, "V").replace(/\bXIS\b/g, "X")
+        .replace(/\bZE\b/g, "Z").replace(/\bIPSILON\b/g, "Y").replace(/\bUI\b/g, "W")
+        // Remove espaço entre letra e número: "A 1" → "A1"
+        .replace(/([A-Z])\s+(\d)/g, "$1$2");
+
+      // Deve ser EXATAMENTE uma prateleira: 1-2 letras + 1-4 números, nada mais
+      const match = t.match(/^([A-Z]{1,2})(\d{1,4})$/);
+      if (!match) return null;
+      return match[1] + match[2];
+    }
+
+    function stopVoicePrice() {
+      voicePriceActive = false;
+      if (voiceAutoSaveTimer) { clearTimeout(voiceAutoSaveTimer); voiceAutoSaveTimer = null; }
+      if (voiceRecognition) {
+        voiceRecognition.onend = null; // impede restart
+        try { voiceRecognition.stop(); } catch(e) {}
+        voiceRecognition = null;
+      }
+      document.getElementById("voicePriceBar").classList.remove("active");
+    }
+
+    function cancelVoicePrice() {
+      stopVoicePrice();
+      document.getElementById("f_preco").value = "";
+      document.getElementById("f_preco").classList.remove("filled-by-ia");
+    }
+
+    // ==========================================
+    // TOGGLE VOZ AUTO ON/OFF
+    // ==========================================
+    let voiceAutoEnabled = localStorage.getItem("voice_auto_enabled") !== "false";
+
+    function toggleVoiceAuto() {
+      voiceAutoEnabled = !voiceAutoEnabled;
+      localStorage.setItem("voice_auto_enabled", voiceAutoEnabled);
+      updateVoiceToggleUI();
+    }
+
+    function updateVoiceToggleUI() {
+      const track = document.getElementById("voiceToggleTrack");
+      const thumb = document.getElementById("voiceToggleThumb");
+      if (voiceAutoEnabled) {
+        track.style.background = "#4caf50";
+        thumb.style.left = "21px";
+      } else {
+        track.style.background = "#555";
+        thumb.style.left = "3px";
+      }
+    }
+
+    // Extrai número de um texto falado
+    function extractPrice(text) {
+      const cleaned = text
+        .replace(/reais?/gi, "")
+        .replace(/centavos?/gi, "")
+        .replace(/e meio/gi, ".5")
+        .replace(/virgula\s*(\d)/gi, ".$1")
+        .trim();
+
+      // Captura todos os grupos de dígitos separados por espaço ex: "mil duzentos" não chega assim,
+      // mas "1 2 5 0" ou "1250" sim — junta sequências de dígitos
+      // Tenta match de número com ponto/vírgula primeiro
+      let match = cleaned.match(/\d[\d.,]*/);
+      if (!match) return null;
+
+      let num = match[0];
+
+      // Remove ponto de milhar (1.250 → 1250) e normaliza vírgula decimal
+      // Regra: se termina com ,XX ou .XX onde XX tem 1-2 dígitos → decimal
+      //        se termina com .XXX ou ,XXX onde XXX tem 3 dígitos → milhar
+      if (/[.,]\d{3}$/.test(num)) {
+        // Ex: 1.250 ou 1,250 → milhar → remove separador
+        num = num.replace(/[.,]/g, "");
+      } else if (/[.,]\d{1,2}$/.test(num)) {
+        // Ex: 35,50 ou 35.50 → decimal
+        num = num.replace(/\./g, "").replace(",", ".");
+      } else {
+        // Só inteiro
+        num = num.replace(/[.,]/g, "");
+      }
+
+      const val = parseFloat(num);
+      return isNaN(val) ? null : val;
+    }
+
+    // Formata número para preço BR: 35 → "35,00" / 35.5 → "35,50"
+    function formatPrice(value) {
+      return value.toFixed(2).replace(".", ",");
+    }
+
   </script>
 </body>
 </html>
