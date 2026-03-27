@@ -183,17 +183,58 @@
     #iaRetryBtn { background: #333; color: #a855f7; border: 1px solid #a855f7; margin-top: 6px; font-size: 13px; }
     #iaPhotoThumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #a855f7; float: right; margin-left: 10px; cursor: pointer; display: none; animation: popIn 0.35s ease; }
     .btn-divider { text-align: center; color: #555; font-size: 11px; margin: 8px 0 2px; }
+
+    /* ===== VOICE PRICE INDICATOR ===== */
+    #voicePriceBar {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(10,10,10,0.97); z-index: 5000;
+      padding: 16px 20px 20px; border-top: 2px solid #4caf50;
+      flex-direction: column; align-items: center; gap: 10px;
+      animation: fadeUp 0.3s ease;
+    }
+    #voicePriceBar.active { display: flex; }
+    #voicePriceBar .vp-title { color: #aaa; font-size: 13px; text-align: center; }
+    #voicePriceBar .vp-price { color: #4caf50; font-size: 42px; font-weight: bold; letter-spacing: 2px; min-height: 50px; }
+    #voicePriceBar .vp-status { color: #888; font-size: 12px; }
+    #voiceMicIcon {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: #4caf50; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; animation: micPulse 1s ease infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+      50%       { box-shadow: 0 0 0 12px rgba(76,175,80,0); }
+    }
+    #voiceCancelBtn {
+      background: #333; color: #aaa; border: 1px solid #555;
+      border-radius: 8px; padding: 8px 20px; font-size: 13px;
+      cursor: pointer; width: auto; margin: 0;
+    }
   </style>
 </head>
 <body>
 
   <div id="syncStatus">✅</div>
+
+  <!-- BANNER PERMISSÃO MICROFONE -->
+  <div id="micPermBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:6000; background:#1a1a2e; border-top:2px solid #4caf50; padding:16px 20px; flex-direction:column; align-items:center; gap:10px; animation: fadeUp 0.3s ease;">
+    <div style="font-size:15px; color:#fff; text-align:center;">🎤 Permitir microfone para falar o preço</div>
+    <div style="font-size:12px; color:#aaa; text-align:center;">Necessário para cadastrar itens por voz automaticamente</div>
+    <button onclick="requestMicPermission()" style="background:#4caf50; color:#000; font-weight:bold; width:auto; padding:12px 30px; border-radius:10px; font-size:15px; margin:0;">Permitir Microfone</button>
+    <button onclick="document.getElementById('micPermBanner').style.display='none'" style="background:transparent; color:#666; font-size:12px; width:auto; padding:4px 10px; margin:0;">Agora não</button>
+  </div>
   <div style="position:fixed; top:10px; left:8px; z-index:900; display:flex; flex-direction:column; align-items:center; gap:4px;">
     <button id="menuButton" onclick="openMenu()">⚙️</button>
     <div id="iaToggleWrap" style="display:flex; align-items:center; gap:5px;">
       <label style="font-size:10px; color:#aaa; margin:0;">IA</label>
       <div onclick="toggleIA()" style="cursor:pointer; width:40px; height:22px; border-radius:11px; position:relative; transition:background 0.3s;" id="iaToggleTrack">
         <div id="iaToggleThumb" style="position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s;"></div>
+      </div>
+    </div>
+    <div id="voiceToggleWrap" style="display:flex; align-items:center; gap:5px;">
+      <label style="font-size:10px; color:#aaa; margin:0;">🎤</label>
+      <div onclick="toggleVoiceAuto()" style="cursor:pointer; width:40px; height:22px; border-radius:11px; position:relative; transition:background 0.3s;" id="voiceToggleTrack">
+        <div id="voiceToggleThumb" style="position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s;"></div>
       </div>
     </div>
   </div>
@@ -265,6 +306,9 @@
 
   <!-- BUSCA -->
   <div id="searchOverlay">
+    <div id="geracaoTag" style="display:none; background:#1a1a2e; border:1px solid #a855f7; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:13px; color:#a855f7; animation: fadeIn 0.3s ease;">
+      🤖 <span id="geracaoTagTexto"></span>
+    </div>
     <input id="searchInput" placeholder="Buscar..." oninput="renderSearchResults()" autocomplete="off" spellcheck="false" />
     <button onclick="closeSearch()" style="background:#555;color:white;">Voltar</button>
     <div id="searchResults" style="margin-top:10px;overflow-y:auto;flex:1;"></div>
@@ -272,6 +316,15 @@
 
   <!-- ZOOM FOTO -->
   <div id="zoomOverlay" onclick="closeZoom()"><img id="zoomImg" src="" /></div>
+
+  <!-- ===== VOICE PRICE BAR ===== -->
+  <div id="voicePriceBar">
+    <div id="voiceMicIcon">🎤</div>
+    <div class="vp-title">Fale o preço do produto</div>
+    <div class="vp-price" id="voicePriceDisplay">—</div>
+    <div class="vp-status" id="voicePriceStatus">Aguardando número...</div>
+    <button id="voiceCancelBtn" onclick="cancelVoicePrice()">✕ Cancelar</button>
+  </div>
 
   <!-- ===== OVERLAY IA ===== -->
   <div id="iaOverlay">
@@ -321,7 +374,44 @@
         refreshData();
       };
       updateIAToggleUI();
+      updateVoiceToggleUI();
+
+      // Verifica permissão do microfone ao carregar
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: "microphone" }).then(result => {
+          if (result.state === "granted") {
+            localStorage.setItem("mic_granted", "1");
+          } else if (result.state === "denied") {
+            localStorage.removeItem("mic_granted");
+          }
+          if (result.state !== "granted" && !localStorage.getItem("mic_granted")) {
+            document.getElementById("micPermBanner").style.display = "flex";
+          }
+        }).catch(() => {
+          if (!localStorage.getItem("mic_granted")) {
+            document.getElementById("micPermBanner").style.display = "flex";
+          }
+        });
+      } else {
+        if (!localStorage.getItem("mic_granted")) {
+          document.getElementById("micPermBanner").style.display = "flex";
+        }
+      }
     });
+
+    function requestMicPermission() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(t => t.stop());
+          localStorage.setItem("mic_granted", "1");
+          document.getElementById("micPermBanner").style.display = "none";
+          showMessage("🎤 Microfone liberado!");
+        })
+        .catch(err => {
+          document.getElementById("micPermBanner").style.display = "none";
+          showMessage("Microfone negado — ative nas configuracoes do Chrome.");
+        });
+    }
 
     function stripHtml(str) {
       if (!str) return str;
@@ -537,63 +627,65 @@
     }
 
     async function analyzeWithGemini(base64) {
-      const key = localStorage.getItem("groq_api_key");
+      const rawKey = localStorage.getItem("groq_api_key") || "";
+      // Remove TUDO que não seja ASCII imprimível (32–126) — elimina caracteres invisíveis, acentos, etc.
+      const key = rawKey.replace(/[^\x20-\x7E]/g, "").trim();
       if (!key) {
-        document.getElementById("iaStatus").textContent = "❌ Configure a chave API do Groq nas ⚙️ Configurações";
+        document.getElementById("iaStatus").textContent = "Configure a chave API do Groq nas Configuracoes";
         document.getElementById("iaStatus").className = "error";
         document.getElementById("iaResult").style.display = "block";
-        document.getElementById("ia_origem").textContent = "⚙️ Acesse console.groq.com → API Keys → cole nas configurações";
+        document.getElementById("ia_origem").textContent = "Acesse console.groq.com > API Keys > cole nas configuracoes";
         return;
       }
 
-      const prompt = `Analise esta imagem de embalagem de peça automotiva e retorne APENAS uma linha com:
-
-NOME DA PEÇA + APLICAÇÃO (veículos compatíveis se houver)
-
-Regras:
-- Inclua: nome da peça, referência/código, veículos compatíveis
-- Exclua: nome da marca/fabricante, CNPJ, endereço, site, telefone, textos de propaganda, certificações, instruções
-- Se houver código/referência da peça, coloque entre parênteses no final
-- Se houver veículos compatíveis, coloque após o nome da peça
-
-Exemplos de saída correta:
-Interruptor de Óleo F250/F350/F1200/F1400 após 98 (7296)
-Bucha do Estabilizador Gol/Parati/Saveiro 95-05 (NK-1234)
-Filtro de Óleo Civic/City 2006-2012 (PH4967)
-
-Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
+      const prompt = "Analise esta imagem de embalagem de peca automotiva e retorne APENAS uma linha com:\n\n"
+        + "NOME DA PECA + APLICACAO (veiculos compativeis se houver)\n\n"
+        + "Regras:\n"
+        + "- Inclua: nome da peca, referencia/codigo, veiculos compativeis\n"
+        + "- Exclua: nome da marca/fabricante, CNPJ, endereco, site, telefone, textos de propaganda, certificacoes, instrucoes\n"
+        + "- Se houver codigo/referencia da peca, coloque entre parenteses no final\n"
+        + "- Se houver veiculos compativeis, coloque apos o nome da peca\n\n"
+        + "Exemplos de saida correta:\n"
+        + "Interruptor de Oleo F250/F350/F1200/F1400 apos 98 (7296)\n"
+        + "Bucha do Estabilizador Gol/Parati/Saveiro 95-05 (NK-1234)\n"
+        + "Filtro de Oleo Civic/City 2006-2012 (PH4967)\n\n"
+        + "Responda APENAS com essa linha, sem explicacoes, sem nome de marca.";
 
       try {
         document.getElementById("iaStatus").innerHTML = '<span class="spinner"></span> IA analisando a embalagem...';
 
-        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + key
-          },
-          body: JSON.stringify({
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
-            max_tokens: 512,
-            temperature: 0.1,
-            messages: [{
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: "data:image/jpeg;base64," + base64 } }
-              ]
-            }]
-          })
+        const payload = JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          max_tokens: 512,
+          temperature: 0.1,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: "data:image/jpeg;base64," + base64 } }
+            ]
+          }]
+        });
+
+        // Usa XMLHttpRequest para evitar o bug de encoding de headers no Safari/iOS
+        const resp = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "https://api.groq.com/openai/v1/chat/completions");
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.setRequestHeader("Authorization", "Bearer " + key);
+          xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => JSON.parse(xhr.responseText) });
+          xhr.onerror = () => reject(new Error("Erro de rede"));
+          xhr.send(payload);
         });
 
         if (!resp.ok) {
-          const err = await resp.json();
+          const err = resp.json();
           throw new Error(err.error?.message || "Erro " + resp.status);
         }
 
-        const data = await resp.json();
+        const data = resp.json();
         const text = data.choices?.[0]?.message?.content || "";
-        if (!text.trim()) throw new Error("IA não retornou texto");
+        if (!text.trim()) throw new Error("IA nao retornou texto");
         showIAResult(text.trim());
 
       } catch(e) {
@@ -632,14 +724,13 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       document.getElementById("f_nome").value = texto;
       document.getElementById("f_nome").classList.add("filled-by-ia");
       document.getElementById("scanHint").style.display = "block";
-      document.getElementById("scanHint").textContent = "🤖 Texto da IA aplicado — edite o nome e preencha a prateleira";
+      document.getElementById("scanHint").textContent = "🤖 Texto da IA aplicado — fale o preço agora";
+
+      // Inicia reconhecimento de voz AGORA — ainda dentro do evento de clique
+      // (antes de qualquer async/setTimeout, senão o navegador bloqueia)
+      if (voiceAutoEnabled) startVoicePrice();
 
       closeIA();
-      setTimeout(() => {
-        document.getElementById("f_nome").focus();
-        document.getElementById("f_nome").scrollIntoView({ behavior:"smooth", block:"center" });
-      }, 300);
-      showMessage("🤖 Texto aplicado! Edite o nome e preencha a prateleira.");
     }
 
     async function retryIA() {
@@ -788,17 +879,413 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       });
     }
 
+    // ==========================================
+    // BASE DE CONHECIMENTO DE GERAÇÕES
+    // ==========================================
+    const GERACOES_DB = {
+      "gol": [
+        { nomes: ["g1","geração 1","geracao 1","geração i","quadrado"], anos: [1980,1994], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","geração ii","bola","gii"], anos: [1994,1999], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","geração iii","giii"], anos: [1999,2005], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","geração iv","giv"], anos: [2005,2008], romano: "IV" },
+        { nomes: ["g5","geração 5","geracao 5","geração v","gv"], anos: [2008,2013], romano: "V" },
+        { nomes: ["g6","geração 6","geracao 6","geração vi","gvi"], anos: [2013,2017], romano: "VI" },
+        { nomes: ["g7","geração 7","geracao 7","geração vii","gvii"], anos: [2017,2099], romano: "VII" },
+      ],
+      "palio": [
+        { nomes: ["g1","geração 1","geracao 1","geração i"], anos: [1996,2000], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","geração ii","fire"], anos: [2000,2011], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","geração iii","novo palio","novo"], anos: [2011,2099], romano: "III" },
+      ],
+      "uno": [
+        { nomes: ["g1","geração 1","geracao 1","antigo","quadrado","mille","velho"], anos: [1984,2004], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo","vivace","way","attractive"], anos: [2010,2099], romano: "II" },
+      ],
+      "siena": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1997,2001], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2001,2008], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3"], anos: [2008,2012], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","grand siena","novo siena"], anos: [2012,2021], romano: "IV" },
+      ],
+      "strada": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1999,2004], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2004,2008], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","adventure"], anos: [2008,2013], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4"], anos: [2013,2020], romano: "IV" },
+        { nomes: ["g5","geração 5","geracao 5","nova strada"], anos: [2020,2099], romano: "V" },
+      ],
+      "saveiro": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1982,1996], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","gii"], anos: [1996,2000], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","giii"], anos: [2000,2005], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","giv"], anos: [2005,2009], romano: "IV" },
+        { nomes: ["g5","geração 5","geracao 5","gv"], anos: [2009,2013], romano: "V" },
+        { nomes: ["g6","geração 6","geracao 6","gvi"], anos: [2013,2099], romano: "VI" },
+      ],
+      "parati": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1982,1996], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","gii"], anos: [1996,2000], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","giii"], anos: [2000,2005], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","giv"], anos: [2005,2012], romano: "IV" },
+      ],
+      "voyage": [
+        { nomes: ["g1","geração 1","geracao 1","antigo","velho"], anos: [1981,1996], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo","g5","gv","geração 5"], anos: [2008,2099], romano: "II" },
+      ],
+      "fox": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2004,2009], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2009,2021], romano: "II" },
+      ],
+      "polo": [
+        { nomes: ["classic","g1","geração 1","geracao 1"], anos: [1997,2002], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2002,2009], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","novo polo"], anos: [2009,2018], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4"], anos: [2018,2099], romano: "IV" },
+      ],
+      "corsa": [
+        { nomes: ["g1","geração 1","geracao 1","antigo","wind","classic","sedan","wagon","pick-up","pickup"], anos: [1994,2002], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","maxx","novo corsa"], anos: [2002,2012], romano: "II" },
+      ],
+      "celta": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2000,2006], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo"], anos: [2006,2016], romano: "II" },
+      ],
+      "onix": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2012,2019], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo onix","turbo"], anos: [2019,2099], romano: "II" },
+      ],
+      "prisma": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2006,2012], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo"], anos: [2013,2020], romano: "II" },
+      ],
+      "s10": [
+        { nomes: ["g1","geração 1","geracao 1","antiga"], anos: [1995,2001], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2001,2011], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","nova s10"], anos: [2012,2099], romano: "III" },
+      ],
+      "astra": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1995,1998], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo"], anos: [1998,2011], romano: "II" },
+      ],
+      "vectra": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1993,1997], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [1997,2005], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","novo vectra"], anos: [2005,2011], romano: "III" },
+      ],
+      "montana": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2003,2010], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","nova"], anos: [2010,2017], romano: "II" },
+      ],
+      "ka": [
+        { nomes: ["g1","geração 1","geracao 1","antigo"], anos: [1997,2007], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2008,2013], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","novo ka"], anos: [2014,2099], romano: "III" },
+      ],
+      "fiesta": [
+        { nomes: ["g1","geração 1","geracao 1","nacional","antigo"], anos: [1996,2002], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2002,2014], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","novo fiesta","mexicano","brasileiro"], anos: [2011,2019], romano: "III" },
+      ],
+      "ecosport": [
+        { nomes: ["g1","geração 1","geracao 1","antigo"], anos: [2003,2012], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo"], anos: [2012,2022], romano: "II" },
+      ],
+      "escort": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [1983,1992], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","hobby"], anos: [1993,1996], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3"], anos: [1997,2003], romano: "III" },
+      ],
+      "ranger": [
+        { nomes: ["g1","geração 1","geracao 1","antiga"], anos: [1998,2005], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2005,2012], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","nova"], anos: [2012,2099], romano: "III" },
+      ],
+      "corolla": [
+        { nomes: ["g1","geração 1","geracao 1","antigo","7a"], anos: [1993,1997], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","8a"], anos: [1998,2002], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","9a"], anos: [2003,2008], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","10a"], anos: [2008,2014], romano: "IV" },
+        { nomes: ["g5","geração 5","geracao 5","11a","novo corolla"], anos: [2015,2019], romano: "V" },
+        { nomes: ["g6","geração 6","geracao 6","12a"], anos: [2020,2099], romano: "VI" },
+      ],
+      "hilux": [
+        { nomes: ["g1","geração 1","geracao 1","antiga"], anos: [1979,1997], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [1997,2005], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3"], anos: [2005,2015], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","nova hilux"], anos: [2016,2099], romano: "IV" },
+      ],
+      "civic": [
+        { nomes: ["g1","geração 1","geracao 1","6a"], anos: [1992,1996], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","7a"], anos: [1997,2001], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","8a"], anos: [2001,2006], romano: "III" },
+        { nomes: ["g4","geração 4","geracao 4","9a","new civic"], anos: [2007,2011], romano: "IV" },
+        { nomes: ["g5","geração 5","geracao 5","10a"], anos: [2012,2016], romano: "V" },
+        { nomes: ["g6","geração 6","geracao 6","11a","novo civic"], anos: [2017,2099], romano: "VI" },
+      ],
+      "hb20": [
+        { nomes: ["g1","geração 1","geracao 1"], anos: [2012,2019], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2","novo"], anos: [2020,2099], romano: "II" },
+      ],
+      "frontier": [
+        { nomes: ["g1","geração 1","geracao 1","espanhola","japonesa","tailandesa"], anos: [1998,2007], romano: "I" },
+        { nomes: ["g2","geração 2","geracao 2"], anos: [2008,2016], romano: "II" },
+        { nomes: ["g3","geração 3","geracao 3","nova"], anos: [2017,2099], romano: "III" },
+      ],
+    };
+
+    // Apelidos de geração em algarismos romanos
+    const ROMANOS = { "i":1,"ii":2,"iii":3,"iv":4,"v":5,"vi":6,"vii":7 };
+
+    // ==========================================
+    // DETECTA MODELO DE CARRO NA PESQUISA
+    // ==========================================
+    function detectarModeloCarro(input) {
+      const modelos = Object.keys(GERACOES_DB);
+      for (const modelo of modelos) {
+        if (input.includes(modelo)) return modelo;
+      }
+      return null;
+    }
+
+    // ==========================================
+    // DETECTA GERAÇÃO NA PESQUISA
+    // ==========================================
+    function detectarGeracao(input, modelo) {
+      const geracoes = GERACOES_DB[modelo];
+      if (!geracoes) return null;
+
+      for (const g of geracoes) {
+        // Verifica pelos nomes (g5, geração 5, gv, etc) — ordem não importa
+        for (const nome of g.nomes) {
+          const escapedNome = nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp('(?:^|\\s|\\b)' + escapedNome + '(?:$|\\s|\\b)');
+          if (re.test(input)) return g;
+        }
+        // Verifica pelo romano
+        const romanoBusca = g.romano.toLowerCase();
+        const regexRomano = new RegExp(`\\b${romanoBusca}\\b`);
+        if (regexRomano.test(input)) return g;
+      }
+
+      // Verifica por ano completo (4 dígitos) — ex: "gol 2010"
+      const anoMatch4 = input.match(/\b(19\d{2}|20\d{2})\b/);
+      if (anoMatch4) {
+        const ano = parseInt(anoMatch4[1]);
+        for (const g of geracoes) {
+          if (ano >= g.anos[0] && ano <= g.anos[1]) return g;
+        }
+      }
+
+      // Verifica por ano abreviado (2 dígitos) — ex: "gol 83" ou "gol 08"
+      const anoMatch2 = input.match(/(?:^|\s)(\d{2})(?:\s|$)/);
+      if (anoMatch2) {
+        const anoExpandido = expandirAno(anoMatch2[1]);
+        for (const g of geracoes) {
+          if (anoExpandido >= g.anos[0] && anoExpandido <= g.anos[1]) return g;
+        }
+      }
+
+      return null;
+    }
+
+    // ==========================================
+    // VERIFICA SE ITEM PERTENCE À GERAÇÃO
+    // ==========================================
+    // Converte ano abreviado (2 dígitos) para ano completo (4 dígitos)
+    function expandirAno(ano2dig) {
+      const n = parseInt(ano2dig);
+      if (n >= 0 && n <= 30) return 2000 + n;  // 00-30 → 2000-2030
+      return 1900 + n;                           // 31-99 → 1931-1999
+    }
+
+    // Extrai todos os intervalos de anos de um texto
+    // Reconhece: "82 a 09", "82 A 09", "82/09", "82-09", "1982 a 2009", "2008 em diante", "08/"
+    function extrairIntervalosAnos(texto) {
+      const intervalos = [];
+      const t = texto.toLowerCase();
+
+      // Padrão 1: "82 a 09", "82 A 09", "82/09", "82-09" (anos abreviados)
+      const regAbrev = /\b(\d{2})\s*(?:a|\/|-|até|ate)\s*(\d{2})\b/g;
+      let m;
+      while ((m = regAbrev.exec(t)) !== null) {
+        intervalos.push([expandirAno(m[1]), expandirAno(m[2])]);
+      }
+
+      // Padrão 2: "1982 a 2009", "1982/2009", "1982-2009" (anos completos)
+      const regCompleto = /\b(19\d{2}|20\d{2})\s*(?:a|\/|-|até|ate)\s*(19\d{2}|20\d{2})\b/g;
+      while ((m = regCompleto.exec(t)) !== null) {
+        intervalos.push([parseInt(m[1]), parseInt(m[2])]);
+      }
+
+      // Padrão 3: "08/" ou "08>" — abreviado com barra/seta no final (ex: "Gol 08/")
+      const regFim = /\b(\d{2})[\/\>]/g;
+      while ((m = regFim.exec(t)) !== null) {
+        intervalos.push([expandirAno(m[1]), 2099]);
+      }
+
+      // Padrão 4: "2008/" ou "2008>" — completo com barra no final
+      const regFimCompleto = /\b(19\d{2}|20\d{2})[\/\>]/g;
+      while ((m = regFimCompleto.exec(t)) !== null) {
+        intervalos.push([parseInt(m[1]), 2099]);
+      }
+
+      // Padrão 5: "em diante", "a partir", "apos", "após"
+      const regEmDiante = /\b(19\d{2}|20\d{2})\s*(em diante|a partir|apos|após|todos)/g;
+      while ((m = regEmDiante.exec(t)) !== null) {
+        intervalos.push([parseInt(m[1]), 2099]);
+      }
+
+      // Padrão 6: anos abreviados com "em diante" — ex: "08 em diante"
+      const regAbrevEmDiante = /\b(\d{2})\s*(em diante|a partir|apos|após)/g;
+      while ((m = regAbrevEmDiante.exec(t)) !== null) {
+        intervalos.push([expandirAno(m[1]), 2099]);
+      }
+
+      return intervalos;
+    }
+
+    // Verifica se dois intervalos de anos se sobrepõem
+    function intervalosSeChocam(ini1, fim1, ini2, fim2) {
+      return ini1 <= fim2 && ini2 <= fim1;
+    }
+
+    function itemPertenceAGeracao(nomeItem, modelo, geracao) {
+      const n = nomeItem.toLowerCase();
+      const [anoInicio, anoFim] = geracao.anos;
+      const romanoBusca = geracao.romano.toLowerCase();
+
+      // 1. Verifica pelos nomes da geração (g5, geração 5, gv, etc)
+      for (const nomeG of geracao.nomes) {
+        if (n.includes(nomeG)) return true;
+      }
+
+      // 2. Verifica pelo romano
+      const regexRomano = new RegExp(`\\b${romanoBusca}\\b`);
+      if (regexRomano.test(n)) return true;
+
+      // 3. Extrai intervalos de anos do nome do item e verifica sobreposição
+      const intervalos = extrairIntervalosAnos(n);
+      if (intervalos.length > 0) {
+        const temSobreposicao = intervalos.some(([ini, fim]) =>
+          intervalosSeChocam(ini, fim, anoInicio, anoFim)
+        );
+        if (temSobreposicao) return true;
+
+        // Se tem intervalos mas nenhum se choca, exclui o item
+        return false;
+      }
+
+      // 4. Verifica anos avulsos (4 dígitos) no nome
+      const anosAvulsos = [...n.matchAll(/\b(19\d{2}|20\d{2})\b/g)].map(m => parseInt(m[1]));
+      if (anosAvulsos.length > 0) {
+        const temCompativel = anosAvulsos.some(a => a >= anoInicio && a <= anoFim);
+        if (temCompativel) return true;
+        const todosIncompativeis = anosAvulsos.every(a => a < anoInicio || a > anoFim);
+        if (todosIncompativeis) return false;
+      }
+
+      return false;
+    }
+
+    // ==========================================
+    // FUNÇÃO DE BUSCA INTELIGENTE
+    // ==========================================
     function renderSearchResults() {
       const inputVal = document.getElementById("searchInput").value.trim().toLowerCase();
       const area = document.getElementById("searchResults");
-      area.innerHTML = ""; if (!inputVal) return;
-      const terms = inputVal.split(/\s+/);
-      const results = estoque.filter(i => terms.every(t => (i.nome + " " + i.prateleira).toLowerCase().includes(t))).reverse().slice(0, 40);
-      results.forEach((i, idx) => {
-        const card = createItemCard(i, terms);
-        card.style.animationDelay = `${idx * 0.04}s`;
-        area.appendChild(card);
-      });
+      const geracaoTag = document.getElementById("geracaoTag");
+      const geracaoTagTexto = document.getElementById("geracaoTagTexto");
+
+      area.innerHTML = "";
+      geracaoTag.style.display = "none";
+
+      if (!inputVal) return;
+
+      // Detecta se há modelo de carro E geração na pesquisa
+      const modelo = detectarModeloCarro(inputVal);
+      const geracao = modelo ? detectarGeracao(inputVal, modelo) : null;
+
+      // Se detectou geração, usa busca inteligente
+      if (modelo && geracao) {
+        // Palavras conectivas a ignorar na extração da peça
+        const STOPWORDS = new Set(['do','da','de','dos','das','no','na','nos','nas',
+          'o','a','os','as','e','em','um','uma','para','por','com','ao','aos',
+          'pelo','pela','pelos','pelas','dianteiro','traseiro','lado','direito',
+          'esquerdo','todos','todas','novo','nova','antigo','antiga']);
+
+        // Remove da pesquisa: modelo, termos de geração, anos, stopwords
+        let termoPeca = inputVal;
+        // Remove o modelo
+        termoPeca = termoPeca.replace(new RegExp(`(?:^|\\s)${modelo}(?:\\s|$)`, 'g'), ' ');
+        // Remove termos de geração
+        for (const nomeG of geracao.nomes) {
+          const esc = nomeG.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          termoPeca = termoPeca.replace(new RegExp(`(?:^|\\s)${esc}(?:\\s|$)`, 'g'), ' ');
+        }
+        // Remove G+número, GV, GVI etc
+        termoPeca = termoPeca.replace(/\b(g\d+|gv|gvi|gvii|giv|giii|gii)\b/gi, ' ');
+        // Remove anos completos e abreviados isolados
+        termoPeca = termoPeca.replace(/\b(19\d{2}|20\d{2})\b/g, ' ');
+        termoPeca = termoPeca.replace(/(?:^|\s)(\d{2})(?:\s|$)/g, ' ');
+        termoPeca = termoPeca.trim().replace(/\s+/g, ' ');
+
+        // Filtra tokens válidos: tamanho > 2 e não é stopword
+        const termosPeca = termoPeca.split(/\s+/).filter(t =>
+          t.length > 2 && !STOPWORDS.has(t)
+        );
+
+        // Filtra: modelo presente + pertence à geração + contém termos da peça (em qualquer ordem)
+        let results = estoque.filter(item => {
+          const n = item.nome.toLowerCase();
+          // 1. Deve conter o modelo
+          if (!n.includes(modelo)) return false;
+          // 2. Deve pertencer à geração
+          if (!itemPertenceAGeracao(item.nome, modelo, geracao)) return false;
+          // 3. Deve conter TODOS os termos da peça, em qualquer ordem
+          if (termosPeca.length > 0) {
+            return termosPeca.every(t => n.includes(t));
+          }
+          return true;
+        }).reverse().slice(0, 40);
+
+        // Monta etiqueta informativa
+        const modeloFormatado = modelo.charAt(0).toUpperCase() + modelo.slice(1);
+        const geracaoFormatada = `G${geracao.romano} (${geracao.anos[0]}–${geracao.anos[1] === 2099 ? 'atual' : geracao.anos[1]})`;
+
+        if (results.length === 0) {
+          geracaoTag.style.display = "block";
+          geracaoTagTexto.innerHTML = `Buscando <strong>${modeloFormatado} ${geracaoFormatada}</strong> — Nenhum item encontrado`;
+          geracaoTag.style.borderColor = "#f44336";
+          geracaoTag.style.color = "#f44336";
+        } else {
+          geracaoTag.style.display = "block";
+          geracaoTag.style.borderColor = "#a855f7";
+          geracaoTag.style.color = "#a855f7";
+          const pecaLabel = termosPeca.length > 0 ? ` — peça: <u style="color:#ffeb3b">${termosPeca.join(' ')}</u>` : '';
+          geracaoTagTexto.innerHTML = `Encontrado: <strong>${modeloFormatado} ${geracaoFormatada}</strong>${pecaLabel} (${results.length} item${results.length > 1 ? 's' : ''})`;
+
+          const highlightTerms = [...termosPeca, modelo];
+          results.forEach((i, idx) => {
+            const card = createItemCard(i, highlightTerms);
+            card.style.animationDelay = `${idx * 0.04}s`;
+            area.appendChild(card);
+          });
+        }
+
+      } else {
+        // Busca normal sem geração
+        const terms = inputVal.split(/\s+/);
+        const results = estoque.filter(i => terms.every(t => (i.nome + " " + i.prateleira).toLowerCase().includes(t))).reverse().slice(0, 40);
+        if (results.length === 0) {
+          area.innerHTML = '<p style="color:#888; text-align:center; margin-top:20px;">Nenhum item encontrado</p>';
+        } else {
+          results.forEach((i, idx) => {
+            const card = createItemCard(i, terms);
+            card.style.animationDelay = `${idx * 0.04}s`;
+            area.appendChild(card);
+          });
+        }
+      }
     }
 
     function clearCurrentPhoto() {
@@ -920,6 +1407,190 @@ Responda APENAS com essa linha, sem explicações, sem nome de marca.`;
       requestAnimationFrame(() => el.style.animation = "popIn 0.3s ease");
       setTimeout(() => el.textContent = "", 3000);
     }
+    // ==========================================
+    // RECONHECIMENTO DE VOZ — PREÇO AUTOMÁTICO
+    // ==========================================
+    let voiceRecognition = null;
+    let voicePriceActive = false;
+    let voiceAutoSaveTimer = null;
+
+    function startVoicePrice() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showMessage("Navegador nao suporta reconhecimento de voz."); return; }
+      stopIACamera();
+      if (simpleStream) { simpleStream.getTracks().forEach(t => t.stop()); simpleStream = null; }
+      voicePriceActive = true;
+      document.getElementById("voicePriceBar").classList.add("active");
+      document.getElementById("voicePriceDisplay").textContent = "—";
+      document.getElementById("voicePriceStatus").textContent = "Pode falar o preco...";
+      setTimeout(() => _criarReconhecimento(SR), 300);
+    }
+
+    function _criarReconhecimento(SR) {
+      if (!voicePriceActive) return;
+      voiceRecognition = new SR();
+      voiceRecognition.lang = "pt-BR";
+      voiceRecognition.continuous = true;
+      voiceRecognition.interimResults = true;
+      voiceRecognition.maxAlternatives = 3;
+      voiceRecognition.onresult = onVoiceResult;
+      voiceRecognition.onerror = (e) => {
+        // no-speech e audio-capture são normais — ignora silenciosamente
+        if (e.error === "no-speech" || e.error === "audio-capture") return;
+        document.getElementById("voicePriceStatus").textContent = "Erro: " + e.error;
+      };
+      voiceRecognition.onend = () => {
+        if (!voicePriceActive) return;
+        // Reinicia sem alterar nada na tela — totalmente transparente pro usuário
+        try {
+          voiceRecognition.start();
+        } catch(e) {
+          // Se não conseguiu reiniciar a mesma instância, cria uma nova
+          setTimeout(() => _criarReconhecimento(SR), 150);
+        }
+      };
+      try {
+        voiceRecognition.start();
+      } catch(e) {
+        document.getElementById("voicePriceStatus").textContent = "Nao foi possivel iniciar: " + e.message;
+        voicePriceActive = false;
+      }
+    }
+
+    function onVoiceResult(event) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        const isFinal = event.results[i].isFinal;
+
+        // Tenta detectar prateleira (letra A-Z seguida de número, ex: A1, C12, B05)
+        const shelf = extractShelf(transcript);
+        if (shelf !== null) {
+          document.getElementById("f_pos").value = shelf;
+          document.getElementById("f_pos").classList.add("filled-by-ia");
+          document.getElementById("voicePriceStatus").textContent = 'Prateleira: ' + shelf;
+          // Não cadastra automaticamente ao detectar prateleira — continua aguardando preço
+          continue;
+        }
+
+        // Tenta detectar preço
+        const price = extractPrice(transcript);
+        if (price !== null) {
+          const formatted = formatPrice(price);
+          if (voiceAutoSaveTimer) clearTimeout(voiceAutoSaveTimer);
+          document.getElementById("voicePriceDisplay").textContent = "R$ " + formatted;
+          document.getElementById("f_preco").value = formatted;
+          document.getElementById("f_preco").classList.add("filled-by-ia");
+          if (isFinal) {
+            document.getElementById("voicePriceStatus").textContent = "Salvando em 0,5s...";
+            voiceAutoSaveTimer = setTimeout(() => { stopVoicePrice(); addItem(); }, 500);
+          }
+        } else if (!isFinal && transcript.trim()) {
+          document.getElementById("voicePriceStatus").textContent = '"' + transcript + '"...';
+        }
+      }
+    }
+
+    // Detecta padrão de prateleira: letra(s) + número (ex: A1, C12, AB3, B05)
+    // Suporta fala como "A 1", "C 12", "be 5" (fonético) etc.
+    function extractShelf(text) {
+      const t = text.trim().toUpperCase()
+        // Fonético: "BE" → B, "CE" → C, "DE" → D, "EFE" → F, etc.
+        .replace(/\bBE\b/g, "B").replace(/\bCE\b/g, "C").replace(/\bDE\b/g, "D")
+        .replace(/\bEFE\b/g, "F").replace(/\bGE\b/g, "G").replace(/\bHA\b/g, "H")
+        .replace(/\bJOTA\b/g, "J").replace(/\bKA\b/g, "K").replace(/\bELE\b/g, "L")
+        .replace(/\bEME\b/g, "M").replace(/\bENE\b/g, "N").replace(/\bPE\b/g, "P")
+        .replace(/\bQUE\b/g, "Q").replace(/\bERRE\b/g, "R").replace(/\bESSE\b/g, "S")
+        .replace(/\bTE\b/g, "T").replace(/\bVE\b/g, "V").replace(/\bXIS\b/g, "X")
+        .replace(/\bZE\b/g, "Z").replace(/\bIPSILON\b/g, "Y").replace(/\bUI\b/g, "W")
+        // Remove espaço entre letra e número: "A 1" → "A1"
+        .replace(/([A-Z])\s+(\d)/g, "$1$2");
+
+      // Deve ser EXATAMENTE uma prateleira: 1-2 letras + 1-4 números, nada mais
+      const match = t.match(/^([A-Z]{1,2})(\d{1,4})$/);
+      if (!match) return null;
+      return match[1] + match[2];
+    }
+
+    function stopVoicePrice() {
+      voicePriceActive = false;
+      if (voiceAutoSaveTimer) { clearTimeout(voiceAutoSaveTimer); voiceAutoSaveTimer = null; }
+      if (voiceRecognition) {
+        voiceRecognition.onend = null; // impede restart
+        try { voiceRecognition.stop(); } catch(e) {}
+        voiceRecognition = null;
+      }
+      document.getElementById("voicePriceBar").classList.remove("active");
+    }
+
+    function cancelVoicePrice() {
+      stopVoicePrice();
+      document.getElementById("f_preco").value = "";
+      document.getElementById("f_preco").classList.remove("filled-by-ia");
+    }
+
+    // ==========================================
+    // TOGGLE VOZ AUTO ON/OFF
+    // ==========================================
+    let voiceAutoEnabled = localStorage.getItem("voice_auto_enabled") !== "false";
+
+    function toggleVoiceAuto() {
+      voiceAutoEnabled = !voiceAutoEnabled;
+      localStorage.setItem("voice_auto_enabled", voiceAutoEnabled);
+      updateVoiceToggleUI();
+    }
+
+    function updateVoiceToggleUI() {
+      const track = document.getElementById("voiceToggleTrack");
+      const thumb = document.getElementById("voiceToggleThumb");
+      if (voiceAutoEnabled) {
+        track.style.background = "#4caf50";
+        thumb.style.left = "21px";
+      } else {
+        track.style.background = "#555";
+        thumb.style.left = "3px";
+      }
+    }
+
+    // Extrai número de um texto falado
+    function extractPrice(text) {
+      const cleaned = text
+        .replace(/reais?/gi, "")
+        .replace(/centavos?/gi, "")
+        .replace(/e meio/gi, ".5")
+        .replace(/virgula\s*(\d)/gi, ".$1")
+        .trim();
+
+      // Captura todos os grupos de dígitos separados por espaço ex: "mil duzentos" não chega assim,
+      // mas "1 2 5 0" ou "1250" sim — junta sequências de dígitos
+      // Tenta match de número com ponto/vírgula primeiro
+      let match = cleaned.match(/\d[\d.,]*/);
+      if (!match) return null;
+
+      let num = match[0];
+
+      // Remove ponto de milhar (1.250 → 1250) e normaliza vírgula decimal
+      // Regra: se termina com ,XX ou .XX onde XX tem 1-2 dígitos → decimal
+      //        se termina com .XXX ou ,XXX onde XXX tem 3 dígitos → milhar
+      if (/[.,]\d{3}$/.test(num)) {
+        // Ex: 1.250 ou 1,250 → milhar → remove separador
+        num = num.replace(/[.,]/g, "");
+      } else if (/[.,]\d{1,2}$/.test(num)) {
+        // Ex: 35,50 ou 35.50 → decimal
+        num = num.replace(/\./g, "").replace(",", ".");
+      } else {
+        // Só inteiro
+        num = num.replace(/[.,]/g, "");
+      }
+
+      const val = parseFloat(num);
+      return isNaN(val) ? null : val;
+    }
+
+    // Formata número para preço BR: 35 → "35,00" / 35.5 → "35,50"
+    function formatPrice(value) {
+      return value.toFixed(2).replace(".", ",");
+    }
+
   </script>
 </body>
 </html>
